@@ -41,6 +41,10 @@ JWT_SECRET_KEY=replace-with-a-long-random-secret
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/patients/me` (Bearer token required)
+- `GET /api/v1/appointments/services`
+- `POST /api/v1/appointments` (Bearer token required)
+- `GET /api/v1/appointments/mine` (Bearer token required)
+- `POST /api/v1/appointments/{appointment_id}/cancel` (Bearer token required)
 
 ## Database migrations (Alembic)
 
