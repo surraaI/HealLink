@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.appointment import Appointment, AppointmentStatus, ServiceCatalog
 from app.models.patient import Patient
+from app.models.provider import ServiceSlot
 from app.schemas.appointment import AppointmentCreate
 
 
@@ -35,21 +36,38 @@ class AppointmentService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Service not found",
             )
-        appointment_time = payload.appointment_at
-        if appointment_time.tzinfo is not None:
-            appointment_time = appointment_time.replace(tzinfo=None)
+        slot = db.scalar(
+            select(ServiceSlot).where(
+                ServiceSlot.id == payload.slot_id,
+                ServiceSlot.service_id == payload.service_id,
+            )
+        )
+        if not slot:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Slot not found for selected service",
+            )
+        if slot.is_booked:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Slot is already booked",
+            )
+        appointment_time = slot.starts_at
         if appointment_time <= datetime.utcnow():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Appointment time must be in the future",
+                detail="Slot time must be in the future",
             )
 
         appointment = Appointment(
             patient_id=patient.id,
             service_id=payload.service_id,
+            slot_id=slot.id,
             appointment_at=appointment_time,
             note=payload.note,
         )
+        slot.is_booked = True
+        db.add(slot)
         db.add(appointment)
         db.commit()
         db.refresh(appointment)
@@ -81,6 +99,11 @@ class AppointmentService:
                 detail="Only booked appointments can be cancelled",
             )
         appointment.status = AppointmentStatus.CANCELLED
+        if appointment.slot_id:
+            slot = db.scalar(select(ServiceSlot).where(ServiceSlot.id == appointment.slot_id))
+            if slot:
+                slot.is_booked = False
+                db.add(slot)
         db.add(appointment)
         db.commit()
         db.refresh(appointment)

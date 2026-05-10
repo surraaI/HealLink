@@ -17,6 +17,7 @@ class ServiceCatalog(Base):
     __tablename__ = "service_catalog"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    provider_id: Mapped[int | None] = mapped_column(ForeignKey("providers.id"), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     service_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     location: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
@@ -33,6 +34,7 @@ class Appointment(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
     service_id: Mapped[int] = mapped_column(ForeignKey("service_catalog.id"), nullable=False, index=True)
+    slot_id: Mapped[int | None] = mapped_column(ForeignKey("service_slots.id"), nullable=True, index=True)
     appointment_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     status: Mapped[AppointmentStatus] = mapped_column(
         SqlEnum(AppointmentStatus), default=AppointmentStatus.BOOKED, nullable=False

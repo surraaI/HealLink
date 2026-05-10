@@ -19,7 +19,7 @@ class ServiceCatalogResponse(BaseModel):
 
 class AppointmentCreate(BaseModel):
     service_id: int
-    appointment_at: datetime
+    slot_id: int
     note: str | None = Field(default=None, max_length=1000)
 
 
