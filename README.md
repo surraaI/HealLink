@@ -24,3 +24,35 @@ python run.py
 ```
 
 Open: `http://localhost:8000/docs`
+
+## Environment variables
+
+Set database connection in `.env`:
+
+```bash
+DATABASE_URL=postgresql://user:password@host:5432/db_name
+JWT_SECRET_KEY=replace-with-a-long-random-secret
+```
+
+## First domain endpoints
+
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/patients/me` (Bearer token required)
+
+## Database migrations (Alembic)
+
+Run migrations:
+
+```bash
+alembic upgrade head
+```
+
+Create a new migration after model changes:
+
+```bash
+alembic revision --autogenerate -m "describe schema change"
+alembic upgrade head
+```
