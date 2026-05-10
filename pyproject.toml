@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "heallink-backend"
 version = "0.1.0"
@@ -13,6 +17,8 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "email-validator>=2.2.0",
     "alembic>=1.13.0",
+    "psycopg[binary]>=3.2.0",
+    "psycopg2-binary>=2.9.9",
 ]
 
 [project.optional-dependencies]
@@ -25,3 +31,6 @@ dev = [
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
