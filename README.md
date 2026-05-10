@@ -56,3 +56,13 @@ Create a new migration after model changes:
 alembic revision --autogenerate -m "describe schema change"
 alembic upgrade head
 ```
+
+## Makefile shortcuts
+
+```bash
+make venv
+make install
+make dev
+make migrate
+make revision MSG="add appointments table"
+```
