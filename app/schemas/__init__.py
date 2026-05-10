@@ -1,8 +1,11 @@
 from app.schemas.appointment import AppointmentCreate, AppointmentResponse, ServiceCatalogResponse
 from app.schemas.auth import RefreshTokenRequest, TokenResponse
 from app.schemas.health import HealthResponse
+from app.schemas.notification import NotificationResponse
 from app.schemas.patient import PatientCreate, PatientLogin, PatientResponse
 from app.schemas.provider import (
+    BookRecheckRequest,
+    NeedsRecheckRequest,
     ProviderCreate,
     ProviderResponse,
     ProviderServiceCreate,
@@ -14,6 +17,7 @@ __all__ = [
     "AppointmentCreate",
     "AppointmentResponse",
     "HealthResponse",
+    "NotificationResponse",
     "PatientCreate",
     "PatientLogin",
     "PatientResponse",
@@ -22,6 +26,8 @@ __all__ = [
     "ProviderServiceCreate",
     "ServiceSlotCreate",
     "ServiceSlotResponse",
+    "NeedsRecheckRequest",
+    "BookRecheckRequest",
     "TokenResponse",
     "RefreshTokenRequest",
     "ServiceCatalogResponse",

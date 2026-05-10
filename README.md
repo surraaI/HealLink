@@ -34,6 +34,19 @@ DATABASE_URL=postgresql://user:password@host:5432/db_name
 JWT_SECRET_KEY=replace-with-a-long-random-secret
 ```
 
+Patient notifications use an **in-app inbox** plus **optional email** through SMTP when enabled. SMS is intentionally not part of this notification layer.
+
+Optional email delivery:
+
+```bash
+NOTIFICATIONS_EMAIL_ENABLED=true
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM_EMAIL=noreply@example.com
+```
+
 ## First domain endpoints
 
 - `POST /api/v1/auth/register`
@@ -45,11 +58,18 @@ JWT_SECRET_KEY=replace-with-a-long-random-secret
 - `POST /api/v1/appointments` (Bearer token required)
 - `GET /api/v1/appointments/mine` (Bearer token required)
 - `POST /api/v1/appointments/{appointment_id}/cancel` (Bearer token required)
+- `GET /api/v1/notifications/mine` (Bearer token required)
+- `POST /api/v1/notifications/{notification_id}/read` (Bearer token required)
 - `GET /api/v1/providers`
 - `POST /api/v1/providers`
 - `POST /api/v1/providers/{provider_id}/services`
 - `POST /api/v1/providers/services/{service_id}/slots`
 - `GET /api/v1/providers/services/{service_id}/slots`
+- `POST /api/v1/providers/{provider_id}/appointments/{appointment_id}/complete`
+- `POST /api/v1/providers/{provider_id}/appointments/{appointment_id}/needs-recheck`
+- `POST /api/v1/providers/{provider_id}/appointments/{appointment_id}/book-recheck`
+
+After a visit, a provider may mark **`needs-recheck`** (clinical issue not resolved); the patient is notified and a new slot can be booked with **`book-recheck`**, which links follow-up appointments to the original visit.
 
 ## Database migrations (Alembic)
 

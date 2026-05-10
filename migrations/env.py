@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
 from app.db.base import Base
-from app.models import HealthEvent, Patient, RefreshToken  # noqa: F401
+import app.models  # noqa: F401,F403 — register all mapped classes for migrations
 
 config = context.config
 settings = get_settings()

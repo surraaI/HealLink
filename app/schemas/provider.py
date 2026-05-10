@@ -48,3 +48,11 @@ class ServiceSlotResponse(BaseModel):
     starts_at: datetime
     ends_at: datetime
     is_booked: bool
+
+
+class NeedsRecheckRequest(BaseModel):
+    reason: str | None = Field(default=None, max_length=1000)
+
+
+class BookRecheckRequest(BaseModel):
+    slot_id: int

@@ -8,6 +8,7 @@ class ServiceCatalogResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    provider_id: int | None
     name: str
     service_type: str
     location: str
@@ -29,7 +30,11 @@ class AppointmentResponse(BaseModel):
     id: int
     patient_id: int
     service_id: int
+    slot_id: int | None
+    follow_up_of_id: int | None
+    continuation_appointment_id: int | None
     appointment_at: datetime
     status: str
     note: str | None
+    provider_recheck_reason: str | None
     created_at: datetime

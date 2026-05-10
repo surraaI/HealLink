@@ -8,9 +8,12 @@ from app.models.appointment import Appointment, AppointmentStatus, ServiceCatalo
 from app.models.patient import Patient
 from app.models.provider import ServiceSlot
 from app.schemas.appointment import AppointmentCreate
+from app.services.notification_service import NotificationService
 
 
 class AppointmentService:
+    def __init__(self) -> None:
+        self.notification_service = NotificationService()
     def list_services(self, db: Session, service_type: str | None, location: str | None) -> list[ServiceCatalog]:
         statement: Select[tuple[ServiceCatalog]] = select(ServiceCatalog).where(ServiceCatalog.is_active.is_(True))
         if service_type:
@@ -69,6 +72,15 @@ class AppointmentService:
         slot.is_booked = True
         db.add(slot)
         db.add(appointment)
+        db.flush()
+        self.notification_service.stage_patient_event(
+            db,
+            patient_id=patient.id,
+            patient_email=patient.email,
+            title="Appointment confirmed",
+            body=f"Your visit is scheduled for {appointment.appointment_at}.",
+            appointment_id=appointment.id,
+        )
         db.commit()
         db.refresh(appointment)
         return appointment
@@ -105,6 +117,16 @@ class AppointmentService:
                 slot.is_booked = False
                 db.add(slot)
         db.add(appointment)
+        db.flush()
+        patient_row = db.scalar(select(Patient).where(Patient.id == appointment.patient_id))
+        self.notification_service.stage_patient_event(
+            db,
+            patient_id=appointment.patient_id,
+            patient_email=patient_row.email if patient_row else None,
+            title="Appointment cancelled",
+            body="Your appointment has been cancelled.",
+            appointment_id=appointment.id,
+        )
         db.commit()
         db.refresh(appointment)
         return appointment

@@ -11,6 +11,8 @@ class AppointmentStatus(str, Enum):
     BOOKED = "booked"
     CANCELLED = "cancelled"
     COMPLETED = "completed"
+    NEEDS_RECHECK = "needs_recheck"
+    FOLLOW_UP_BOOKED = "follow_up_booked"
 
 
 class ServiceCatalog(Base):
@@ -35,9 +37,16 @@ class Appointment(Base):
     patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
     service_id: Mapped[int] = mapped_column(ForeignKey("service_catalog.id"), nullable=False, index=True)
     slot_id: Mapped[int | None] = mapped_column(ForeignKey("service_slots.id"), nullable=True, index=True)
+    follow_up_of_id: Mapped[int | None] = mapped_column(
+        ForeignKey("appointments.id"), nullable=True, index=True
+    )
+    continuation_appointment_id: Mapped[int | None] = mapped_column(
+        ForeignKey("appointments.id"), nullable=True, index=True
+    )
     appointment_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     status: Mapped[AppointmentStatus] = mapped_column(
         SqlEnum(AppointmentStatus), default=AppointmentStatus.BOOKED, nullable=False
     )
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    provider_recheck_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
