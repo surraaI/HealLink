@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from_email: str = ""
 
+    # Payments (Chapa)
+    chapa_base_url: str = "https://api.chapa.co"
+    chapa_secret_key: str = ""
+    chapa_public_key: str = ""
+    chapa_callback_url: str = ""
+    chapa_return_url: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 
