@@ -21,7 +21,11 @@ class Provider(Base):
     provider_type: Mapped[ProviderType] = mapped_column(SQLAlchemyEnum(ProviderType), nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    specialization: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    license_number: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    tin_number: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     location: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    address: Mapped[str | None] = mapped_column(String(255), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
