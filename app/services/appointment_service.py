@@ -2,7 +2,7 @@ from datetime import datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import Select, select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.appointment import Appointment, AppointmentStatus, ServiceCatalog
 from app.models.patient import Patient
@@ -14,22 +14,24 @@ from app.services.notification_service import NotificationService
 class AppointmentService:
     def __init__(self) -> None:
         self.notification_service = NotificationService()
-    def list_services(self, db: Session, service_type: str | None, location: str | None) -> list[ServiceCatalog]:
+
+    async def list_services(self, db: AsyncSession, service_type: str | None, location: str | None) -> list[ServiceCatalog]:
         statement: Select[tuple[ServiceCatalog]] = select(ServiceCatalog).where(ServiceCatalog.is_active.is_(True))
         if service_type:
             statement = statement.where(ServiceCatalog.service_type == service_type)
         if location:
             statement = statement.where(ServiceCatalog.location.ilike(f"%{location}%"))
         statement = statement.order_by(ServiceCatalog.created_at.desc())
-        return list(db.scalars(statement).all())
+        res = await db.scalars(statement)
+        return list(res.all())
 
-    def create_appointment(
+    async def create_appointment(
         self,
-        db: Session,
+        db: AsyncSession,
         payload: AppointmentCreate,
         patient: Patient,
     ) -> Appointment:
-        service = db.scalar(
+        service = await db.scalar(
             select(ServiceCatalog).where(
                 ServiceCatalog.id == payload.service_id, ServiceCatalog.is_active.is_(True)
             )
@@ -39,7 +41,7 @@ class AppointmentService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Service not found",
             )
-        slot = db.scalar(
+        slot = await db.scalar(
             select(ServiceSlot).where(
                 ServiceSlot.id == payload.slot_id,
                 ServiceSlot.service_id == payload.service_id,
@@ -72,8 +74,8 @@ class AppointmentService:
         slot.is_booked = True
         db.add(slot)
         db.add(appointment)
-        db.flush()
-        self.notification_service.stage_patient_event(
+        await db.flush()
+        await self.notification_service.stage_patient_event(
             db,
             patient_id=patient.id,
             patient_email=patient.email,
@@ -81,20 +83,21 @@ class AppointmentService:
             body=f"Your visit is scheduled for {appointment.appointment_at}.",
             appointment_id=appointment.id,
         )
-        db.commit()
-        db.refresh(appointment)
+        await db.commit()
+        await db.refresh(appointment)
         return appointment
 
-    def list_patient_appointments(self, db: Session, patient_id: int) -> list[Appointment]:
+    async def list_patient_appointments(self, db: AsyncSession, patient_id: int) -> list[Appointment]:
         statement = (
             select(Appointment)
             .where(Appointment.patient_id == patient_id)
             .order_by(Appointment.appointment_at.desc())
         )
-        return list(db.scalars(statement).all())
+        res = await db.scalars(statement)
+        return list(res.all())
 
-    def cancel_appointment(self, db: Session, appointment_id: int, patient_id: int) -> Appointment:
-        appointment = db.scalar(select(Appointment).where(Appointment.id == appointment_id))
+    async def cancel_appointment(self, db: AsyncSession, appointment_id: int, patient_id: int) -> Appointment:
+        appointment = await db.scalar(select(Appointment).where(Appointment.id == appointment_id))
         if not appointment:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -112,14 +115,14 @@ class AppointmentService:
             )
         appointment.status = AppointmentStatus.CANCELLED
         if appointment.slot_id:
-            slot = db.scalar(select(ServiceSlot).where(ServiceSlot.id == appointment.slot_id))
+            slot = await db.scalar(select(ServiceSlot).where(ServiceSlot.id == appointment.slot_id))
             if slot:
                 slot.is_booked = False
                 db.add(slot)
         db.add(appointment)
-        db.flush()
-        patient_row = db.scalar(select(Patient).where(Patient.id == appointment.patient_id))
-        self.notification_service.stage_patient_event(
+        await db.flush()
+        patient_row = await db.scalar(select(Patient).where(Patient.id == appointment.patient_id))
+        await self.notification_service.stage_patient_event(
             db,
             patient_id=appointment.patient_id,
             patient_email=patient_row.email if patient_row else None,
@@ -127,6 +130,6 @@ class AppointmentService:
             body="Your appointment has been cancelled.",
             appointment_id=appointment.id,
         )
-        db.commit()
-        db.refresh(appointment)
+        await db.commit()
+        await db.refresh(appointment)
         return appointment

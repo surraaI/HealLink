@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from email.mime.text import MIMEText
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.models.notification import Notification, NotificationChannel
@@ -14,11 +14,11 @@ settings = get_settings()
 
 
 class NotificationService:
-    def stage_patient_event(
+    async def stage_patient_event(
         self,
-        db: Session,
+        db: AsyncSession,
         *,
-        patient_id: int,
+        patient_id: int | None,
         patient_email: str | None,
         title: str,
         body: str,
@@ -50,12 +50,25 @@ class NotificationService:
             mail.email_attempted_at = datetime.now(timezone.utc).replace(tzinfo=None)
             mail.email_failed = not ok
             db.add(mail)
-
-        db.flush()
+        await db.flush()
         return in_app
 
-    def list_for_patient(
-        self, db: Session, patient_id: int, include_read: bool, limit: int
+    async def stage_admin_event(self, db: AsyncSession, *, title: str, body: str) -> Notification:
+        """Create an admin-scoped notification (not tied to a patient). Does not commit."""
+        in_app = Notification(
+            patient_id=None,
+            channel=NotificationChannel.ADMIN,
+            title=title,
+            body=body,
+            appointment_id=None,
+            read_at=None,
+        )
+        db.add(in_app)
+        await db.flush()
+        return in_app
+
+    async def list_for_patient(
+        self, db: AsyncSession, patient_id: int, include_read: bool, limit: int
     ) -> list[Notification]:
         statement = (
             select(Notification)
@@ -65,12 +78,13 @@ class NotificationService:
         if not include_read:
             statement = statement.where(Notification.read_at.is_(None))
         statement = statement.order_by(Notification.created_at.desc()).limit(limit)
-        return list(db.scalars(statement).all())
+        res = await db.scalars(statement)
+        return list(res.all())
 
-    def mark_read(self, db: Session, notification_id: int, patient_id: int) -> Notification:
+    async def mark_read(self, db: AsyncSession, notification_id: int, patient_id: int) -> Notification:
         from fastapi import HTTPException, status
 
-        notif = db.scalar(
+        notif = await db.scalar(
             select(Notification).where(
                 Notification.id == notification_id,
                 Notification.patient_id == patient_id,
@@ -82,8 +96,8 @@ class NotificationService:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         notif.read_at = now
         db.add(notif)
-        db.commit()
-        db.refresh(notif)
+        await db.commit()
+        await db.refresh(notif)
         return notif
 
     def _send_email_external(self, to_email: str, subject: str, body_plain: str) -> bool:

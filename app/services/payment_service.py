@@ -1,7 +1,8 @@
 from uuid import uuid4
 
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.models.appointment import Appointment, ServiceCatalog
@@ -15,9 +16,9 @@ class PaymentService:
         self.settings = settings
         self.chapa = ChapaService(base_url=settings.chapa_base_url, secret_key=settings.chapa_secret_key)
 
-    def initialize_chapa_for_appointment(
+    async def initialize_chapa_for_appointment(
         self,
-        db: Session,
+        db: AsyncSession,
         *,
         appointment_id: int,
         patient_id: int,
@@ -34,15 +35,11 @@ class PaymentService:
                 detail="Chapa secret key is not configured",
             )
 
-        appointment = (
-            db.query(Appointment)
-            .filter(Appointment.id == appointment_id, Appointment.patient_id == patient_id)
-            .first()
-        )
+        appointment = await db.scalar(select(Appointment).where(Appointment.id == appointment_id, Appointment.patient_id == patient_id))
         if not appointment:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
 
-        service = db.query(ServiceCatalog).filter(ServiceCatalog.id == appointment.service_id).first()
+        service = await db.scalar(select(ServiceCatalog).where(ServiceCatalog.id == appointment.service_id))
         if not service:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
 
@@ -84,15 +81,15 @@ class PaymentService:
             checkout_url=init_result.checkout_url,
         )
         db.add(payment)
-        db.commit()
-        db.refresh(payment)
+        await db.commit()
+        await db.refresh(payment)
         return payment
 
-    def verify_chapa_payment(self, db: Session, *, tx_ref: str, patient_id: int | None = None) -> Payment:
-        q = db.query(Payment).filter(Payment.tx_ref == tx_ref, Payment.provider == "chapa")
+    async def verify_chapa_payment(self, db: AsyncSession, *, tx_ref: str, patient_id: int | None = None) -> Payment:
+        stmt = select(Payment).where(Payment.tx_ref == tx_ref, Payment.provider == "chapa")
         if patient_id is not None:
-            q = q.filter(Payment.patient_id == patient_id)
-        payment = q.first()
+            stmt = stmt.where(Payment.patient_id == patient_id)
+        payment = await db.scalar(stmt)
         if not payment:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
 
@@ -108,7 +105,7 @@ class PaymentService:
             payment.status = PaymentStatus.PENDING
 
         db.add(payment)
-        db.commit()
-        db.refresh(payment)
+        await db.commit()
+        await db.refresh(payment)
         return payment
 

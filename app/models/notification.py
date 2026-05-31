@@ -10,13 +10,14 @@ from app.db.base import Base
 class NotificationChannel(str, Enum):
     IN_APP = "IN_APP"
     EMAIL = "EMAIL"
+    ADMIN = "ADMIN"
 
 
 class Notification(Base):
     __tablename__ = "notifications"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
+    patient_id: Mapped[int | None] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
     channel: Mapped[NotificationChannel] = mapped_column(SqlEnum(NotificationChannel), nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)

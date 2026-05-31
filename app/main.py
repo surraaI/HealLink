@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routers import appointments, auth, health, notifications, patients, payments, providers
+from app.routers import appointments, auth, health, notifications, patients, payments, providers, admin
 
 
 def create_app() -> FastAPI:
@@ -16,6 +16,7 @@ def create_app() -> FastAPI:
     app.include_router(appointments.router, prefix="/api/v1")
     app.include_router(providers.router, prefix="/api/v1")
     app.include_router(payments.router, prefix="/api/v1")
+    app.include_router(admin.router)
 
     return app
 

@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_patient
 from app.db.session import get_db
@@ -14,39 +14,39 @@ appointment_service = AppointmentService()
 
 
 @router.get("/services", response_model=list[ServiceCatalogResponse])
-def list_services(
-    db: Annotated[Session, Depends(get_db)],
+async def list_services(
+    db: Annotated[AsyncSession, Depends(get_db)],
     service_type: Annotated[str | None, Query()] = None,
     location: Annotated[str | None, Query()] = None,
 ) -> list[ServiceCatalogResponse]:
-    services = appointment_service.list_services(db, service_type=service_type, location=location)
+    services = await appointment_service.list_services(db, service_type=service_type, location=location)
     return [ServiceCatalogResponse.model_validate(service) for service in services]
 
 
 @router.post("", response_model=AppointmentResponse)
-def create_appointment(
+async def create_appointment(
     payload: AppointmentCreate,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     current_patient: Annotated[Patient, Depends(get_current_patient)],
 ) -> AppointmentResponse:
-    appointment = appointment_service.create_appointment(db, payload, current_patient)
+    appointment = await appointment_service.create_appointment(db, payload, current_patient)
     return AppointmentResponse.model_validate(appointment)
 
 
 @router.get("/mine", response_model=list[AppointmentResponse])
-def list_my_appointments(
-    db: Annotated[Session, Depends(get_db)],
+async def list_my_appointments(
+    db: Annotated[AsyncSession, Depends(get_db)],
     current_patient: Annotated[Patient, Depends(get_current_patient)],
 ) -> list[AppointmentResponse]:
-    appointments = appointment_service.list_patient_appointments(db, current_patient.id)
+    appointments = await appointment_service.list_patient_appointments(db, current_patient.id)
     return [AppointmentResponse.model_validate(appointment) for appointment in appointments]
 
 
 @router.post("/{appointment_id}/cancel", response_model=AppointmentResponse)
-def cancel_appointment(
+async def cancel_appointment(
     appointment_id: int,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     current_patient: Annotated[Patient, Depends(get_current_patient)],
 ) -> AppointmentResponse:
-    appointment = appointment_service.cancel_appointment(db, appointment_id, current_patient.id)
+    appointment = await appointment_service.cancel_appointment(db, appointment_id, current_patient.id)
     return AppointmentResponse.model_validate(appointment)

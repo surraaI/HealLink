@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_patient
 from app.db.session import get_db
@@ -21,13 +21,13 @@ payment_service = PaymentService()
     "/appointments/{appointment_id}/chapa/initialize",
     response_model=ChapaInitializeResponse,
 )
-def initialize_chapa_payment_for_appointment(
+async def initialize_chapa_payment_for_appointment(
     appointment_id: int,
     payload: ChapaInitializeForAppointmentRequest,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     current_patient: Annotated[Patient, Depends(get_current_patient)],
 ) -> ChapaInitializeResponse:
-    payment = payment_service.initialize_chapa_for_appointment(
+    payment = await payment_service.initialize_chapa_for_appointment(
         db,
         appointment_id=appointment_id,
         patient_id=current_patient.id,
@@ -42,21 +42,21 @@ def initialize_chapa_payment_for_appointment(
 
 
 @router.get("/chapa/verify/{tx_ref}", response_model=PaymentResponse)
-def verify_chapa_payment(
+async def verify_chapa_payment(
     tx_ref: str,
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     current_patient: Annotated[Patient, Depends(get_current_patient)],
 ) -> PaymentResponse:
-    payment = payment_service.verify_chapa_payment(db, tx_ref=tx_ref, patient_id=current_patient.id)
+    payment = await payment_service.verify_chapa_payment(db, tx_ref=tx_ref, patient_id=current_patient.id)
     return PaymentResponse.model_validate(payment)
 
 
 @router.get("/chapa/callback", response_model=PaymentResponse)
-def chapa_callback(
+async def chapa_callback(
     trx_ref: Annotated[str, Query(alias="trx_ref")],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> PaymentResponse:
     # Callback is not authenticated; we still verify using the secret key server-side.
-    payment = payment_service.verify_chapa_payment(db, tx_ref=trx_ref, patient_id=None)
+    payment = await payment_service.verify_chapa_payment(db, tx_ref=trx_ref, patient_id=None)
     return PaymentResponse.model_validate(payment)
 
