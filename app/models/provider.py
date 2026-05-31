@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum
 
 from sqlalchemy import DateTime, Enum as SQLAlchemyEnum, ForeignKey, Integer, String, Text
@@ -27,7 +27,7 @@ class Provider(Base):
     location: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     address: Mapped[str | None] = mapped_column(String(255), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda ctx=None: datetime.utcnow(), nullable=False)
 
     # Verification fields
     verification_status: Mapped[str] = mapped_column(
@@ -49,4 +49,4 @@ class ServiceSlot(Base):
     starts_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     ends_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     is_booked: Mapped[bool] = mapped_column(default=False, nullable=False, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda ctx=None: datetime.utcnow(), nullable=False)
