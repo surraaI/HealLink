@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         url = self.DATABASE_URL
+        if url.startswith("postgresql+psycopg://"):
+            return url.replace("postgresql+psycopg://", "postgresql+asyncpg://", 1)
         if url.startswith("postgresql+psycopg2://"):
             return url.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
         if url.startswith("postgresql://"):
