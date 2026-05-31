@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy import Select, select
@@ -58,7 +58,7 @@ class AppointmentService:
                 detail="Slot is already booked",
             )
         appointment_time = slot.starts_at
-        if appointment_time <= datetime.utcnow():
+        if appointment_time <= datetime.now(timezone.utc):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Slot time must be in the future",
