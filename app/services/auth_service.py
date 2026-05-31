@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from uuid import uuid4
 
 from fastapi import HTTPException, status
@@ -70,7 +70,7 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Refresh token mismatch",
             )
-        if token_record.revoked_at is not None or token_record.expires_at <= datetime.now(timezone.utc):
+        if token_record.revoked_at is not None or token_record.expires_at <= datetime.utcnow():
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Refresh token expired or revoked",
@@ -83,7 +83,7 @@ class AuthService:
                 detail="Patient not found",
             )
 
-        token_record.revoked_at = datetime.now(timezone.utc)
+        token_record.revoked_at = datetime.utcnow()
         db.add(token_record)
         await db.commit()
 
@@ -114,7 +114,7 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Refresh token mismatch",
             )
-        token_record.revoked_at = datetime.now(timezone.utc)
+        token_record.revoked_at = datetime.utcnow()
         db.add(token_record)
         await db.commit()
 
@@ -138,7 +138,7 @@ class AuthService:
         access_token = create_access_token(str(patient.id))
         refresh_jti = str(uuid4())
         refresh_token = create_refresh_token(str(patient.id), jti=refresh_jti)
-        refresh_expires = datetime.now(timezone.utc) + timedelta(days=settings.refresh_token_expire_days)
+        refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
 
         token_record = RefreshToken(
             patient_id=patient.id,
