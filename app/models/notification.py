@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 from sqlalchemy import DateTime, Enum as SqlEnum, ForeignKey, Integer, String, Text
@@ -27,4 +27,4 @@ class Notification(Base):
     read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     email_attempted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     email_failed: Mapped[bool] = mapped_column(default=False, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
