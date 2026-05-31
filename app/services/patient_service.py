@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password, verify_password
 from app.models.patient import Patient
-from app.schemas.patient import PatientCreate
+from app.schemas.patient import PatientCreate, PatientUpdate
 
 
 class PatientService:
@@ -47,3 +47,30 @@ class PatientService:
         if not verify_password(password, patient.password_hash):
             return None
         return patient
+
+    async def update_patient(self, db: AsyncSession, patient: Patient, payload: PatientUpdate) -> tuple[Patient, str | None]:
+        email_changed: str | None = None
+        if payload.email and payload.email.lower() != patient.email:
+            existing = await self.get_by_email(db, payload.email.lower())
+            if existing and existing.id != patient.id:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already registered")
+            patient.email = payload.email.lower()
+            patient.is_verified = False
+            patient.verification_status = "pending"
+            email_changed = patient.email
+
+        if payload.first_name is not None:
+            patient.first_name = payload.first_name.strip() or None
+        if payload.last_name is not None:
+            patient.last_name = payload.last_name.strip() or None
+        if payload.phone_number is not None:
+            patient.phone_number = payload.phone_number.strip() or None
+        if payload.date_of_birth is not None:
+            patient.date_of_birth = payload.date_of_birth
+        if payload.gender is not None:
+            patient.gender = payload.gender.strip() or None
+
+        db.add(patient)
+        await db.commit()
+        await db.refresh(patient)
+        return patient, email_changed

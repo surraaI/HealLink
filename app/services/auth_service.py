@@ -16,6 +16,7 @@ from app.models.patient import Patient
 from app.models.refresh_token import RefreshToken
 from app.schemas.auth import TokenResponse
 from app.schemas.patient import PatientCreate, PatientResponse
+from app.services.account_verification_service import AccountVerificationService
 from app.services.patient_service import PatientService
 
 settings = get_settings()
@@ -24,6 +25,7 @@ settings = get_settings()
 class AuthService:
     def __init__(self) -> None:
         self.patient_service = PatientService()
+        self.verification_service = AccountVerificationService()
 
     async def register(self, db: AsyncSession, payload: PatientCreate) -> TokenResponse:
         existing = await self.patient_service.get_by_email(db, payload.email.lower())
@@ -33,6 +35,7 @@ class AuthService:
                 detail="Email is already registered",
             )
         patient = await self.patient_service.create_patient(db, payload)
+        await self.verification_service.send_registration_verification(db, patient)
         return await self._issue_token_pair(db, patient)
 
     async def login(self, db: AsyncSession, email: str, password: str) -> TokenResponse:
@@ -88,6 +91,17 @@ class AuthService:
         await db.commit()
 
         return await self._issue_token_pair(db, patient)
+
+    async def verify_email(self, db: AsyncSession, token: str) -> PatientResponse:
+        patient = await self.verification_service.verify_email(db, token)
+        return PatientResponse.model_validate(patient)
+
+    async def request_password_reset(self, db: AsyncSession, email: str) -> None:
+        await self.verification_service.request_password_reset(db, email)
+
+    async def reset_password(self, db: AsyncSession, token: str, new_password: str) -> PatientResponse:
+        patient = await self.verification_service.reset_password(db, token, new_password)
+        return PatientResponse.model_validate(patient)
 
     async def revoke_refresh_token(self, db: AsyncSession, refresh_token: str) -> None:
         payload = decode_token(refresh_token)

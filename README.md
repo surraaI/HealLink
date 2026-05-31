@@ -50,6 +50,7 @@ SMTP_PORT=587
 SMTP_USER=
 SMTP_PASSWORD=
 SMTP_FROM_EMAIL=noreply@example.com
+ACCOUNT_ACTION_TOKEN_EXPIRE_HOURS=24
 ```
 
 ## First domain endpoints
@@ -58,7 +59,11 @@ SMTP_FROM_EMAIL=noreply@example.com
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
+- `POST /api/v1/auth/verify-email`
+- `POST /api/v1/auth/forgot-password`
+- `POST /api/v1/auth/reset-password`
 - `GET /api/v1/patients/me` (Bearer token required)
+- `PATCH /api/v1/patients/me` (Bearer token required)
 - `GET /api/v1/appointments/services`
 - `POST /api/v1/appointments` (Bearer token required)
 - `GET /api/v1/appointments/mine` (Bearer token required)
