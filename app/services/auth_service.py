@@ -3,7 +3,7 @@ from uuid import uuid4
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.security import (
@@ -25,26 +25,26 @@ class AuthService:
     def __init__(self) -> None:
         self.patient_service = PatientService()
 
-    def register(self, db: Session, payload: PatientCreate) -> TokenResponse:
-        existing = self.patient_service.get_by_email(db, payload.email.lower())
+    async def register(self, db: AsyncSession, payload: PatientCreate) -> TokenResponse:
+        existing = await self.patient_service.get_by_email(db, payload.email.lower())
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Email is already registered",
             )
-        patient = self.patient_service.create_patient(db, payload)
-        return self._issue_token_pair(db, patient)
+        patient = await self.patient_service.create_patient(db, payload)
+        return await self._issue_token_pair(db, patient)
 
-    def login(self, db: Session, email: str, password: str) -> TokenResponse:
-        patient = self.patient_service.authenticate(db, email, password)
+    async def login(self, db: AsyncSession, email: str, password: str) -> TokenResponse:
+        patient = await self.patient_service.authenticate(db, email, password)
         if not patient:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid email or password",
             )
-        return self._issue_token_pair(db, patient)
+        return await self._issue_token_pair(db, patient)
 
-    def refresh(self, db: Session, refresh_token: str) -> TokenResponse:
+    async def refresh(self, db: AsyncSession, refresh_token: str) -> TokenResponse:
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != "refresh":
             raise HTTPException(
@@ -59,7 +59,7 @@ class AuthService:
                 detail="Invalid refresh token",
             )
         statement = select(RefreshToken).where(RefreshToken.jti == jti)
-        token_record = db.scalar(statement)
+        token_record = await db.scalar(statement)
         if not token_record:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -76,7 +76,7 @@ class AuthService:
                 detail="Refresh token expired or revoked",
             )
 
-        patient = self.patient_service.get_by_id(db, patient_id)
+        patient = await self.patient_service.get_by_id(db, patient_id)
         if not patient:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -85,11 +85,11 @@ class AuthService:
 
         token_record.revoked_at = datetime.now(timezone.utc)
         db.add(token_record)
-        db.commit()
+        await db.commit()
 
-        return self._issue_token_pair(db, patient)
+        return await self._issue_token_pair(db, patient)
 
-    def revoke_refresh_token(self, db: Session, refresh_token: str) -> None:
+    async def revoke_refresh_token(self, db: AsyncSession, refresh_token: str) -> None:
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != "refresh":
             raise HTTPException(
@@ -103,7 +103,7 @@ class AuthService:
                 detail="Invalid refresh token",
             )
         statement = select(RefreshToken).where(RefreshToken.jti == jti)
-        token_record = db.scalar(statement)
+        token_record = await db.scalar(statement)
         if not token_record:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -116,9 +116,9 @@ class AuthService:
             )
         token_record.revoked_at = datetime.now(timezone.utc)
         db.add(token_record)
-        db.commit()
+        await db.commit()
 
-    def get_patient_from_token(self, db: Session, token: str) -> Patient:
+    async def get_patient_from_token(self, db: AsyncSession, token: str) -> Patient:
         payload = decode_token(token)
         if not payload or "sub" not in payload or payload.get("type") != "access":
             raise HTTPException(
@@ -126,7 +126,7 @@ class AuthService:
                 detail="Invalid or expired token",
             )
         patient_id = self._parse_subject(payload.get("sub"))
-        patient = self.patient_service.get_by_id(db, patient_id)
+        patient = await self.patient_service.get_by_id(db, patient_id)
         if not patient:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -134,7 +134,7 @@ class AuthService:
             )
         return patient
 
-    def _issue_token_pair(self, db: Session, patient: Patient) -> TokenResponse:
+    async def _issue_token_pair(self, db: AsyncSession, patient: Patient) -> TokenResponse:
         access_token = create_access_token(str(patient.id))
         refresh_jti = str(uuid4())
         refresh_token = create_refresh_token(str(patient.id), jti=refresh_jti)
@@ -147,7 +147,7 @@ class AuthService:
             expires_at=refresh_expires,
         )
         db.add(token_record)
-        db.commit()
+        await db.commit()
 
         return TokenResponse(
             access_token=access_token,

@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import DateTime, Enum as SqlEnum, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Enum as SQLAlchemyEnum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -24,6 +24,17 @@ class Provider(Base):
     location: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Verification fields
+    verification_status: Mapped[str] = mapped_column(
+        SQLAlchemyEnum("pending", "approved", "rejected", name="verificationstatus"),
+        default="pending",
+        server_default="pending",
+    )
+    license_document_url: Mapped[str | None] = mapped_column(String(500))
+    rejection_reason: Mapped[str | None] = mapped_column(Text)
+    verified_by: Mapped[int | None] = mapped_column(ForeignKey("providers.id"), nullable=True)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class ServiceSlot(Base):

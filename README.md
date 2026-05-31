@@ -33,6 +33,10 @@ Set database connection in `.env`:
 ```bash
 DATABASE_URL=postgresql://user:password@host:5432/db_name
 JWT_SECRET_KEY=replace-with-a-long-random-secret
+CHAPA_SECRET_KEY=CHASECK-xxxxxxxxxxxxxxxx
+CHAPA_PUBLIC_KEY=CHAPUBK-xxxxxxxxxxxxxxxx
+CHAPA_CALLBACK_URL=https://your-api.example.com/api/v1/payments/chapa/callback
+CHAPA_RETURN_URL=https://your-frontend.example.com/payment/return
 ```
 
 Patient notifications use an **in-app inbox** plus **optional email** through SMTP when enabled. SMS is intentionally not part of this notification layer.

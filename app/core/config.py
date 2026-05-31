@@ -21,6 +21,18 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from_email: str = ""
 
+    # Payments (Chapa)
+    chapa_base_url: str = "https://api.chapa.co"
+    chapa_secret_key: str = ""
+    chapa_public_key: str = ""
+    chapa_callback_url: str = ""
+    chapa_return_url: str = ""
+
+    # Cloudinary
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 

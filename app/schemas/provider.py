@@ -1,7 +1,9 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from fastapi import Form, UploadFile, File
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
 class ProviderCreate(BaseModel):
@@ -24,6 +26,64 @@ class ProviderResponse(BaseModel):
     location: str
     description: str | None
     created_at: datetime
+
+
+class ProviderRegisterForm(BaseModel):
+    name: str
+    provider_type: str
+    email: EmailStr
+    phone: str | None = None
+    location: str
+    description: str | None = None
+
+    # helper to be used in FastAPI endpoint as a dependency
+    @classmethod
+    def as_form(
+        cls,
+        name: str = Form(...),
+        provider_type: str = Form(...),
+        email: EmailStr = Form(...),
+        phone: str | None = Form(None),
+        location: str = Form(...),
+        description: str | None = Form(None),
+        license_file: UploadFile = File(...),
+    ) -> "ProviderRegisterForm":
+        obj = cls(name=name, provider_type=provider_type, email=email, phone=phone, location=location, description=description)
+        # attach file for router to receive
+        setattr(obj, "license_file", license_file)
+        return obj
+
+
+class ProviderPublicResponse(ProviderResponse):
+    verification_status: str
+
+
+class AdminProviderResponse(ProviderPublicResponse):
+    license_document_url: str | None
+    rejection_reason: str | None
+
+
+class VerifyProviderRequest(BaseModel):
+    action: Literal["approve", "reject"]
+    reason: str | None = None
+
+    @model_validator(mode="after")
+    def check_reason(self):
+        if self.action == "reject" and not self.reason:
+            raise ValueError("reason is required when rejecting a provider")
+        return self
+
+
+class AdminStatsResponse(BaseModel):
+    pending: int
+    approved: int
+    rejected: int
+    total: int
+
+
+class SignedDocumentResponse(BaseModel):
+    signed_url: str
+    expires_in: int
 
 
 class ProviderServiceCreate(BaseModel):
