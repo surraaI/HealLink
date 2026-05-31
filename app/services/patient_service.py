@@ -17,17 +17,18 @@ class PatientService:
         return await db.scalar(statement)
 
     async def create_patient(self, db: AsyncSession, payload: PatientCreate) -> Patient:
-        full_name = payload.full_name
-        if not full_name and payload.first_name and payload.last_name:
-            full_name = f"{payload.first_name.strip()} {payload.last_name.strip()}".strip()
-        if not full_name:
+        # require at least a first name or last name
+        if not payload.first_name and not payload.last_name:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="full_name or first_name and last_name are required",
+                detail="first_name or last_name is required",
             )
+        first_name = payload.first_name.strip() if payload.first_name else None
+        last_name = payload.last_name.strip() if payload.last_name else None
         patient = Patient(
             email=payload.email.lower(),
-            full_name=full_name.strip(),
+            first_name=first_name,
+            last_name=last_name,
             phone_number=payload.phone_number.strip() if payload.phone_number else None,
             date_of_birth=payload.date_of_birth,
             gender=payload.gender.strip() if payload.gender else None,
