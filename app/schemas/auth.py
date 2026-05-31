@@ -33,7 +33,8 @@ class UserRegisterData(BaseModel):
 class DoctorRegisterData(BaseModel):
     email: str
     password: str
-    full_name: str
+    first_name: str
+    last_name: str | None = None
     phone_number: str
     role: Literal["doctor"] = "doctor"
     license_number: str
@@ -44,7 +45,8 @@ class DoctorRegisterData(BaseModel):
 class ClinicRegisterData(BaseModel):
     email: str
     password: str
-    full_name: str
+    first_name: str
+    last_name: str | None = None
     role: Literal["clinic"] = "clinic"
     address: str
     phone_number: str
@@ -56,7 +58,8 @@ class ClinicRegisterData(BaseModel):
 class DiagnosticCenterRegisterData(BaseModel):
     email: str
     password: str
-    full_name: str
+    first_name: str
+    last_name: str | None = None
     role: Literal["diagnostic_center"] = "diagnostic_center"
     address: str
     phone_number: str
@@ -69,7 +72,8 @@ class StaffRegisterData(BaseModel):
     employer_id: int
     employer_type: ProviderType
     email: str
-    full_name: str
+    first_name: str
+    last_name: str | None = None
     phone_number: str
     role: Literal["lab assistant", "card_checker"]
     send_invitation: bool | None = None

@@ -8,7 +8,6 @@ class PatientCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
     role: Literal["patient"] = "patient"
-    full_name: str | None = Field(default=None, min_length=2, max_length=255)
     first_name: str | None = Field(default=None, min_length=1, max_length=128)
     last_name: str | None = Field(default=None, min_length=1, max_length=128)
     phone_number: str | None = Field(default=None, max_length=30)
@@ -26,7 +25,8 @@ class PatientResponse(BaseModel):
 
     id: int
     email: EmailStr
-    full_name: str
+    first_name: str | None = None
+    last_name: str | None = None
     phone_number: str | None = None
     date_of_birth: date | None = None
     gender: str | None = None

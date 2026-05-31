@@ -8,7 +8,6 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 class ProviderCreate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=255)
-    full_name: str | None = Field(default=None, min_length=2, max_length=255)
     provider_type: str
     email: EmailStr
     password: str | None = Field(default=None, min_length=8, max_length=128)
@@ -23,8 +22,6 @@ class ProviderCreate(BaseModel):
 
     @model_validator(mode="after")
     def normalize_fields(self):
-        if not self.name and self.full_name:
-            self.name = self.full_name
         if not self.location and self.address:
             self.location = self.address
         if not self.phone and self.phone_number:
@@ -51,7 +48,6 @@ class ProviderResponse(BaseModel):
 
 class ProviderRegisterForm(BaseModel):
     name: str | None = None
-    full_name: str | None = None
     provider_type: str
     email: EmailStr
     password: str | None = None
@@ -72,7 +68,6 @@ class ProviderRegisterForm(BaseModel):
         provider_type: str = Form(...),
         email: EmailStr = Form(...),
         password: str | None = Form(None),
-        full_name: str | None = Form(None),
         name: str | None = Form(None),
         phone_number: str | None = Form(None),
         phone: str | None = Form(None),
@@ -87,7 +82,6 @@ class ProviderRegisterForm(BaseModel):
     ) -> "ProviderRegisterForm":
         obj = cls(
             name=name,
-            full_name=full_name,
             provider_type=provider_type,
             email=email,
             password=password,

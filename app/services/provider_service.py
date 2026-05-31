@@ -43,7 +43,7 @@ class ProviderService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid provider_type",
             )
-        name = _first_text(payload.name, payload.full_name)
+        name = _first_text(payload.name)
         location = _first_text(payload.location, payload.address)
         if not name:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="name is required")
@@ -84,7 +84,7 @@ async def register_provider_with_document(db: AsyncSession, form_data, license_f
     if provider_type not in {item.value for item in ProviderType}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid provider_type")
 
-    name = _first_text(getattr(form_data, "name", None), getattr(form_data, "full_name", None))
+    name = _first_text(getattr(form_data, "name", None))
     location = _first_text(getattr(form_data, "location", None), getattr(form_data, "address", None))
     if not name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="name is required")
