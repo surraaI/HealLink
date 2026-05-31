@@ -11,9 +11,17 @@ from app.services.notification_service import NotificationService
 from app.services.storage_service import upload_license_document
 
 
+def _first_text(*values: str | None) -> str | None:
+    for value in values:
+        if value and value.strip():
+            return value.strip()
+    return None
+
+
 class ProviderService:
     async def list_providers(self, db: AsyncSession, provider_type: str | None, location: str | None) -> list[Provider]:
         statement = select(Provider)
+        statement = statement.where(Provider.verification_status == "approved")
         if provider_type:
             statement = statement.where(Provider.provider_type == provider_type)
         if location:
@@ -35,13 +43,24 @@ class ProviderService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid provider_type",
             )
+        name = _first_text(payload.name, payload.full_name)
+        location = _first_text(payload.location, payload.address)
+        if not name:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="name is required")
+        if not location:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="location is required")
         provider = Provider(
-            name=payload.name.strip(),
+            name=name,
             provider_type=provider_type,  # type: ignore[arg-type]
             email=payload.email.lower(),
-            phone=payload.phone,
-            location=payload.location.strip(),
+            phone=_first_text(payload.phone, payload.phone_number),
+            specialization=payload.specialization,
+            license_number=payload.license_number,
+            tin_number=payload.tin_number,
+            location=location,
+            address=payload.address,
             description=payload.description,
+            verification_status="pending",
         )
         db.add(provider)
         await db.commit()
@@ -65,12 +84,23 @@ async def register_provider_with_document(db: AsyncSession, form_data, license_f
     if provider_type not in {item.value for item in ProviderType}:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid provider_type")
 
+    name = _first_text(getattr(form_data, "name", None), getattr(form_data, "full_name", None))
+    location = _first_text(getattr(form_data, "location", None), getattr(form_data, "address", None))
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="name is required")
+    if not location:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="location is required")
+
     provider = Provider(
-        name=form_data.name.strip(),
+        name=name,
         provider_type=provider_type,  # type: ignore[arg-type]
         email=form_data.email.lower(),
-        phone=form_data.phone,
-        location=form_data.location.strip(),
+        phone=_first_text(getattr(form_data, "phone", None), getattr(form_data, "phone_number", None)),
+        specialization=getattr(form_data, "specialization", None),
+        license_number=getattr(form_data, "license_number", None),
+        tin_number=getattr(form_data, "tin_number", None),
+        location=location,
+        address=getattr(form_data, "address", None),
         description=form_data.description,
         verification_status="pending",
         license_document_url=secure_url,
