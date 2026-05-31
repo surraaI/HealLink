@@ -10,7 +10,7 @@ router = APIRouter(prefix="/patients", tags=["Patients"])
 
 
 @router.get("/me", response_model=PatientResponse)
-def get_my_profile(
+async def get_my_profile(
     current_patient: Annotated[Patient, Depends(get_current_patient)],
 ) -> PatientResponse:
     return PatientResponse.model_validate(current_patient)
