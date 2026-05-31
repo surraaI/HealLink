@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from sqlalchemy import Boolean, Date, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
