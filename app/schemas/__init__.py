@@ -1,8 +1,11 @@
 from app.schemas.appointment import AppointmentCreate, AppointmentResponse, ServiceCatalogResponse
 from app.schemas.auth import (
+    EmailVerificationRequest,
     ClinicRegisterData,
     DiagnosticCenterRegisterData,
     DoctorRegisterData,
+    PasswordResetConfirmRequest,
+    PasswordResetRequest,
     RefreshTokenRequest,
     StaffRegisterData,
     TokenResponse,
@@ -10,7 +13,7 @@ from app.schemas.auth import (
 )
 from app.schemas.health import HealthResponse
 from app.schemas.notification import NotificationResponse
-from app.schemas.patient import PatientCreate, PatientLogin, PatientResponse
+from app.schemas.patient import PatientCreate, PatientLogin, PatientResponse, PatientUpdate
 from app.schemas.provider import (
     BookRecheckRequest,
     NeedsRecheckRequest,
@@ -29,6 +32,7 @@ __all__ = [
     "PatientCreate",
     "PatientLogin",
     "PatientResponse",
+    "PatientUpdate",
     "ProviderCreate",
     "ProviderResponse",
     "ProviderServiceCreate",
@@ -38,6 +42,9 @@ __all__ = [
     "BookRecheckRequest",
     "TokenResponse",
     "RefreshTokenRequest",
+    "EmailVerificationRequest",
+    "PasswordResetRequest",
+    "PasswordResetConfirmRequest",
     "UserRegisterData",
     "DoctorRegisterData",
     "ClinicRegisterData",

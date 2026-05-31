@@ -20,6 +20,15 @@ class PatientLogin(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 
+class PatientUpdate(BaseModel):
+    email: EmailStr | None = None
+    first_name: str | None = Field(default=None, min_length=1, max_length=128)
+    last_name: str | None = Field(default=None, min_length=1, max_length=128)
+    phone_number: str | None = Field(default=None, max_length=30)
+    date_of_birth: date | None = None
+    gender: str | None = Field(default=None, max_length=30)
+
+
 class PatientResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

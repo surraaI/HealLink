@@ -14,6 +14,9 @@ settings = get_settings()
 
 
 class NotificationService:
+    def send_email(self, to_email: str, subject: str, body_plain: str) -> bool:
+        return self._send_email_external(to_email, subject, body_plain)
+
     async def stage_patient_event(
         self,
         db: AsyncSession,
@@ -46,7 +49,7 @@ class NotificationService:
                 email_attempted_at=None,
                 email_failed=False,
             )
-            ok = self._send_email_external(patient_email, title, body)
+            ok = self.send_email(patient_email, title, body)
             mail.email_attempted_at = datetime.now(timezone.utc).replace(tzinfo=None)
             mail.email_failed = not ok
             db.add(mail)
