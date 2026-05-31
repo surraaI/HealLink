@@ -18,7 +18,7 @@ class Provider(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    provider_type: Mapped[ProviderType] = mapped_column(SqlEnum(ProviderType), nullable=False, index=True)
+    provider_type: Mapped[ProviderType] = mapped_column(SQLAlchemyEnum(ProviderType), nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     location: Mapped[str] = mapped_column(String(255), nullable=False, index=True)

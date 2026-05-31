@@ -1,6 +1,6 @@
 """add provider verification fields
 
-Revision ID: 20260601_005_provider_verification_fields
+Revision ID: 20260601_005_provider_verif
 Revises: 29d3ecc2c067
 Create Date: 2026-06-01 00:00:00.000000
 """
@@ -8,7 +8,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = '20260601_005_provider_verification_fields'
+revision = '20260601_005_provider_verif'
 down_revision = '29d3ecc2c067'
 branch_labels = None
 depends_on = None

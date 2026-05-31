@@ -1,5 +1,5 @@
 from functools import lru_cache
-
+from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -8,7 +8,23 @@ class Settings(BaseSettings):
     environment: str = "development"
     debug: bool = True
     api_v1_prefix: str = "/api/v1"
-    database_url: str = "sqlite:///./heallink.db"
+
+    DATABASE_URL: str = "sqlite:///./heallink.db"  # raw value from .env
+
+    @computed_field
+    @property
+    def database_url(self) -> str:
+        url = self.DATABASE_URL
+        if url.startswith("postgresql+psycopg2://"):
+            return url.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
+        if url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if url.startswith("sqlite:///"):
+            return url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
+        if url.startswith("sqlite://"):
+            return url.replace("sqlite://", "sqlite+aiosqlite://", 1)
+        return url
+
     jwt_secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
@@ -21,14 +37,12 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_from_email: str = ""
 
-    # Payments (Chapa)
     chapa_base_url: str = "https://api.chapa.co"
     chapa_secret_key: str = ""
     chapa_public_key: str = ""
     chapa_callback_url: str = ""
     chapa_return_url: str = ""
 
-    # Cloudinary
     CLOUDINARY_CLOUD_NAME: str = ""
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""

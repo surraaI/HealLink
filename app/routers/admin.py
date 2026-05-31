@@ -16,8 +16,8 @@ router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
 
 @router.get("/providers", response_model=list[AdminProviderResponse])
 async def list_providers(
+    db: Annotated[AsyncSession, Depends(get_db)],
     status: Annotated[str | None, Query()] = None,
-    db: Annotated[AsyncSession, Depends(get_db)] = Depends(get_db),
     _admin=Depends(require_super_admin),
 ) -> list[AdminProviderResponse]:
     items = await get_providers_by_status(db, status)
@@ -26,8 +26,8 @@ async def list_providers(
 
 @router.get("/providers/{provider_id}/document", response_model=SignedDocumentResponse)
 async def get_provider_document(
-    provider_id: Annotated[int, Path(...)] ,
-    db: Annotated[AsyncSession, Depends(get_db)] = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    provider_id: Annotated[int, Path(...)],
     _admin=Depends(require_super_admin),
 ):
     provider = await db.scalar(select(Provider).where(Provider.id == provider_id))
@@ -41,9 +41,9 @@ async def get_provider_document(
 
 @router.post("/providers/{provider_id}/verify", response_model=AdminProviderResponse)
 async def post_verify_provider(
-    provider_id: Annotated[int, Path(... )],
+    db: Annotated[AsyncSession, Depends(get_db)],
     payload: VerifyProviderRequest,
-    db: Annotated[AsyncSession, Depends(get_db)] = Depends(get_db),
+    provider_id: Annotated[int, Path(...)],
     admin=Depends(require_super_admin),
 ):
     admin_id = getattr(admin, "id", None)
@@ -53,7 +53,7 @@ async def post_verify_provider(
 
 @router.get("/stats", response_model=AdminStatsResponse)
 async def get_stats(
-    db: Annotated[AsyncSession, Depends(get_db)] = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
     _admin=Depends(require_super_admin),
 ):
     stats = await get_provider_stats(db)
