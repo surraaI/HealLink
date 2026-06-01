@@ -54,6 +54,11 @@ class NotificationService:
             mail.email_attempted_at = datetime.now(timezone.utc).replace(tzinfo=None)
             mail.email_failed = not ok
             db.add(mail)
+        elif patient_email:
+            logger.warning(
+                "Skipping email notification for patient %s because notifications_email_enabled is disabled",
+                patient_email,
+            )
         await db.flush()
         return in_app
 
@@ -107,15 +112,15 @@ class NotificationService:
     def _send_email_external(self, to_email: str, subject: str, body_plain: str) -> bool:
         """Send email via Brevo SMTP."""
         if not settings.smtp_host or not settings.smtp_user or not settings.smtp_password:
-            logger.warning("Brevo SMTP settings are incomplete - skipping email send")
+            logger.warning("Brevo SMTP settings are incomplete; skipping email to %s", to_email)
             return False
         
         if not settings.smtp_from_email:
-            logger.error("SMTP_FROM_EMAIL is not configured - email sending requires a verified sender address")
+            logger.error("SMTP_FROM_EMAIL is not configured; skipping email to %s", to_email)
             return False
         
         sender = settings.smtp_from_email
-        logger.info(f"Attempting to send email to {to_email} using sender: {sender}")
+        logger.info("Attempting to send email to %s using sender %s", to_email, sender)
         
         try:
             message = EmailMessage()
@@ -139,9 +144,9 @@ class NotificationService:
                 server.login(settings.smtp_user, settings.smtp_password)
                 server.send_message(message)
 
-            logger.info(f"Email sent successfully via Brevo SMTP to {to_email} from {sender}")
+            logger.info("Email sent successfully via Brevo SMTP to %s from %s", to_email, sender)
             return True
-        except Exception as e:
-            logger.error(f"Brevo SMTP email failed to {to_email} from {sender}: {e}")
+        except Exception:
+            logger.exception("Brevo SMTP email failed to %s from %s", to_email, sender)
             # do not raise — email failure must never crash the main request
             return False

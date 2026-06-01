@@ -42,6 +42,10 @@ class PasswordResetConfirmRequest(BaseModel):
         return v
 
 
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
 class UserRegisterData(BaseModel):
     email: str
     password: str
