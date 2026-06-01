@@ -109,9 +109,16 @@ class NotificationService:
         if not settings.smtp_host or not settings.smtp_user or not settings.smtp_password:
             logger.warning("Brevo SMTP settings are incomplete - skipping email send")
             return False
+        
+        if not settings.smtp_from_email:
+            logger.error("SMTP_FROM_EMAIL is not configured - email sending requires a verified sender address")
+            return False
+        
+        sender = settings.smtp_from_email
+        logger.info(f"Attempting to send email to {to_email} using sender: {sender}")
+        
         try:
             message = EmailMessage()
-            sender = settings.smtp_from_email or settings.smtp_user
             message["From"] = f"HealLink <{sender}>"
             message["To"] = to_email
             message["Subject"] = subject
@@ -132,9 +139,9 @@ class NotificationService:
                 server.login(settings.smtp_user, settings.smtp_password)
                 server.send_message(message)
 
-            logger.info("Email sent via Brevo SMTP to %s", to_email)
+            logger.info(f"Email sent successfully via Brevo SMTP to {to_email} from {sender}")
             return True
         except Exception as e:
-            logger.error(f"Brevo SMTP email failed: {e}")
+            logger.error(f"Brevo SMTP email failed to {to_email} from {sender}: {e}")
             # do not raise — email failure must never crash the main request
             return False
