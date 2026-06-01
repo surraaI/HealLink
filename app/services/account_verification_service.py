@@ -124,21 +124,33 @@ class AccountVerificationService:
 
     def _build_verification_body(self, token: str, reason: str) -> str:
         return (
-            f"Your HealLink email verification token for {reason} is:\n\n"
-            f"{token}\n\n"
-            f"Use it with POST /api/v1/auth/verify-email before it expires."
+            f"Hi,\n\n"
+            f"Thanks for starting your {reason} with HealLink. To complete the process, please verify your email address by using the code below.\n\n"
+            f"Verification code:\n{token}\n\n"
+            f"How to use it:\n- In the app or website: paste this code into the 'Verify Email' field.\n\n"
+            f"This code expires in {settings.account_action_token_expire_hours} hours.\n\n"
+            "If you did not request this, you can safely ignore this message.\n\n"
+            "Thanks,\nThe HealLink team"
         )
 
     def _build_password_reset_body(self, token: str) -> str:
         return (
-            "Your HealLink password reset token is:\n\n"
-            f"{token}\n\n"
-            "Use it with POST /api/v1/auth/reset-password before it expires."
+            "Hi,\n\n"
+            "We received a request to reset your HealLink password. Use the code below to set a new password.\n\n"
+            f"Password reset code:\n{token}\n\n"
+            "How to use it: Open the app or website and follow the password reset flow, entering this code when prompted.\n\n"
+            f"This code expires in {settings.account_action_token_expire_hours} hours.\n\n"
+            "If you didn't request a password reset, please ignore this email or contact support.\n\n"
+            "Thanks,\nThe HealLink team"
         )
 
     def _build_email_change_body(self, token: str, new_email: str) -> str:
         return (
-            f"A request was made to change your HealLink email to {new_email}.\n\n"
-            f"Verification token:\n{token}\n\n"
-            "Use it with POST /api/v1/auth/verify-email before it expires."
+            f"Hi,\n\n"
+            f"A request was made to change your HealLink account email to {new_email}. To confirm this change, please verify using the code below.\n\n"
+            f"Verification code:\n{token}\n\n"
+            f"How to use it:\n- In the app or website: paste this code into the 'Verify Email' field.\n\n"
+            f"This code expires in {settings.account_action_token_expire_hours} hours.\n\n"
+            "If you did not request this change, you can ignore this message or contact support.\n\n"
+            "Thanks,\nThe HealLink team"
         )
