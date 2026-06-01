@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.routers import appointments, auth, health, notifications, patients, payments, providers, admin
+from app.routers import appointments, auth, health, notifications, patients, payments, providers, admin, qr_checkin
 
 
 settings = get_settings()
@@ -36,6 +36,7 @@ def create_app() -> FastAPI:
     app.include_router(appointments.router, prefix="/api/v1")
     app.include_router(providers.router, prefix="/api/v1")
     app.include_router(payments.router, prefix="/api/v1")
+    app.include_router(qr_checkin.router, prefix="/api/v1")
     app.include_router(admin.router)
 
     return app

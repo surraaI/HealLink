@@ -13,6 +13,7 @@ class AppointmentStatus(str, Enum):
     COMPLETED = "completed"
     NEEDS_RECHECK = "needs_recheck"
     FOLLOW_UP_BOOKED = "follow_up_booked"
+    CHECKED_IN = "checked_in"
 
 
 class ServiceCatalog(Base):
@@ -49,4 +50,5 @@ class Appointment(Base):
     )
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
     provider_recheck_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    check_in_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda ctx=None: datetime.utcnow(), nullable=False)
