@@ -39,6 +39,10 @@ class Provider(Base):
     rejection_reason: Mapped[str | None] = mapped_column(Text)
     verified_by: Mapped[int | None] = mapped_column(ForeignKey("providers.id"), nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    
+    # Rating fields
+    average_rating: Mapped[float] = mapped_column(default=0.0, server_default="0")
+    review_count: Mapped[int] = mapped_column(default=0, server_default="0")
 
 
 class ServiceSlot(Base):
