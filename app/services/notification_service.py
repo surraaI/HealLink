@@ -1,5 +1,6 @@
 import logging
 import smtplib
+import time
 from datetime import datetime, timezone
 from email.mime.text import MIMEText
 
@@ -111,16 +112,24 @@ class NotificationService:
         msg["Subject"] = subject
         msg["From"] = settings.smtp_from_email
         msg["To"] = to_email
-        try:
-            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:
-                smtp.ehlo()
-                if smtp.has_extn("STARTTLS"):
-                    smtp.starttls()
+        # Retry a few times for transient network errors, logging full tracebacks on failure.
+        max_attempts = 3
+        for attempt in range(1, max_attempts + 1):
+            try:
+                with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:
                     smtp.ehlo()
-                if settings.smtp_user and settings.smtp_password:
-                    smtp.login(settings.smtp_user, settings.smtp_password)
-                smtp.sendmail(settings.smtp_from_email, [to_email], msg.as_string())
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("SMTP send failed: %s", exc)
-            return False
-        return True
+                    if smtp.has_extn("STARTTLS"):
+                        smtp.starttls()
+                        smtp.ehlo()
+                    if settings.smtp_user and settings.smtp_password:
+                        smtp.login(settings.smtp_user, settings.smtp_password)
+                    smtp.sendmail(settings.smtp_from_email, [to_email], msg.as_string())
+                return True
+            except Exception as exc:  # noqa: BLE001
+                if attempt < max_attempts:
+                    logger.warning("SMTP send attempt %d/%d failed: %s — retrying", attempt, max_attempts, exc)
+                    time.sleep(1 * attempt)
+                    continue
+                # final attempt failed — log full exception with traceback
+                logger.exception("SMTP send failed after %d attempts", max_attempts)
+                return False
