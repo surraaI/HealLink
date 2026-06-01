@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from email.message import EmailMessage
 from html import escape
 import smtplib
+from socket import gaierror, timeout as socket_timeout
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -120,7 +121,13 @@ class NotificationService:
             return False
         
         sender = settings.smtp_from_email
-        logger.info("Attempting to send email to %s using sender %s", to_email, sender)
+        logger.info(
+            "Attempting to send email to %s using sender %s via %s:%s",
+            to_email,
+            sender,
+            settings.smtp_host,
+            settings.smtp_port,
+        )
         
         try:
             message = EmailMessage()
@@ -137,7 +144,7 @@ class NotificationService:
                 subtype="html",
             )
 
-            with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=settings.smtp_timeout_seconds) as server:
                 server.ehlo()
                 server.starttls()
                 server.ehlo()
@@ -146,7 +153,30 @@ class NotificationService:
 
             logger.info("Email sent successfully via Brevo SMTP to %s from %s", to_email, sender)
             return True
+        except socket_timeout:
+            logger.exception(
+                "Brevo SMTP connection timed out for %s via %s:%s after %ss",
+                to_email,
+                settings.smtp_host,
+                settings.smtp_port,
+                settings.smtp_timeout_seconds,
+            )
+            return False
+        except gaierror:
+            logger.exception(
+                "Brevo SMTP host resolution failed for %s via %s:%s",
+                to_email,
+                settings.smtp_host,
+                settings.smtp_port,
+            )
+            return False
         except Exception:
-            logger.exception("Brevo SMTP email failed to %s from %s", to_email, sender)
+            logger.exception(
+                "Brevo SMTP email failed to %s from %s via %s:%s",
+                to_email,
+                sender,
+                settings.smtp_host,
+                settings.smtp_port,
+            )
             # do not raise — email failure must never crash the main request
             return False
