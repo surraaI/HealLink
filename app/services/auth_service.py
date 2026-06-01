@@ -19,6 +19,7 @@ from app.schemas.auth import TokenResponse
 from app.schemas.patient import PatientCreate, PatientResponse
 from app.services.account_verification_service import AccountVerificationService
 from app.services.patient_service import PatientService
+from app.services.provider_service import ProviderService
 
 settings = get_settings()
 

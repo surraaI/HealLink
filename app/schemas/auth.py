@@ -6,13 +6,14 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 from app.models.provider import ProviderType
 
 from app.schemas.patient import PatientResponse
+from app.schemas.provider import ProviderResponse
 
 
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
-    patient: Union[PatientResponse, ProviderResponse]
+    patient: PatientResponse | ProviderResponse
 
 
 class RefreshTokenRequest(BaseModel):

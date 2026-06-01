@@ -1,8 +1,8 @@
 import logging
-import smtplib
-import time
 from datetime import datetime, timezone
-from email.mime.text import MIMEText
+from email.message import EmailMessage
+from html import escape
+import smtplib
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -105,31 +105,36 @@ class NotificationService:
         return notif
 
     def _send_email_external(self, to_email: str, subject: str, body_plain: str) -> bool:
-        if not settings.smtp_host or not settings.smtp_from_email:
-            logger.warning("Email notification skipped: SMTP not fully configured.")
+        """Send email via Brevo SMTP."""
+        if not settings.smtp_host or not settings.smtp_user or not settings.smtp_password:
+            logger.warning("Brevo SMTP settings are incomplete - skipping email send")
             return False
-        msg = MIMEText(body_plain, "plain", "utf-8")
-        msg["Subject"] = subject
-        msg["From"] = settings.smtp_from_email
-        msg["To"] = to_email
-        # Retry a few times for transient network errors, logging full tracebacks on failure.
-        max_attempts = 3
-        for attempt in range(1, max_attempts + 1):
-            try:
-                with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=20) as smtp:
-                    smtp.ehlo()
-                    if smtp.has_extn("STARTTLS"):
-                        smtp.starttls()
-                        smtp.ehlo()
-                    if settings.smtp_user and settings.smtp_password:
-                        smtp.login(settings.smtp_user, settings.smtp_password)
-                    smtp.sendmail(settings.smtp_from_email, [to_email], msg.as_string())
-                return True
-            except Exception as exc:  # noqa: BLE001
-                if attempt < max_attempts:
-                    logger.warning("SMTP send attempt %d/%d failed: %s — retrying", attempt, max_attempts, exc)
-                    time.sleep(1 * attempt)
-                    continue
-                # final attempt failed — log full exception with traceback
-                logger.exception("SMTP send failed after %d attempts", max_attempts)
-                return False
+        try:
+            message = EmailMessage()
+            sender = settings.smtp_from_email or settings.smtp_user
+            message["From"] = f"HealLink <{sender}>"
+            message["To"] = to_email
+            message["Subject"] = subject
+            message.set_content(body_plain)
+            message.add_alternative(
+                (
+                    "<div style='font-family: Arial, sans-serif; max-width: 600px; line-height: 1.6;'>"
+                    f"{escape(body_plain).replace(chr(10), '<br>')}"
+                    "</div>"
+                ),
+                subtype="html",
+            )
+
+            with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as server:
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(settings.smtp_user, settings.smtp_password)
+                server.send_message(message)
+
+            logger.info("Email sent via Brevo SMTP to %s", to_email)
+            return True
+        except Exception as e:
+            logger.error(f"Brevo SMTP email failed: {e}")
+            # do not raise — email failure must never crash the main request
+            return False
