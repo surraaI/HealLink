@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Literal
 
 from fastapi import Form, UploadFile, File
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 class ProviderCreate(BaseModel):
@@ -19,6 +19,16 @@ class ProviderCreate(BaseModel):
     license_number: str | None = Field(default=None, max_length=100)
     tin_number: str | None = Field(default=None, max_length=100)
     description: str | None = Field(default=None, max_length=1000)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str | None) -> str | None:
+        if v is not None:
+            if len(v) < 8:
+                raise ValueError("Password should have at least 8 characters")
+            if len(v) > 128:
+                raise ValueError("Password should not exceed 128 characters")
+        return v
 
     @model_validator(mode="after")
     def normalize_fields(self):
@@ -63,6 +73,16 @@ class ProviderRegisterForm(BaseModel):
     description: str | None = None
     role: Literal["doctor", "clinic", "diagnostic_center"] | None = None
     license_file: UploadFile | None = None
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str | None) -> str | None:
+        if v is not None:
+            if len(v) < 8:
+                raise ValueError("Password should have at least 8 characters")
+            if len(v) > 128:
+                raise ValueError("Password should not exceed 128 characters")
+        return v
 
     # helper to be used in FastAPI endpoint as a dependency
     @classmethod

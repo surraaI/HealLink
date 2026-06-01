@@ -39,18 +39,18 @@ CHAPA_CALLBACK_URL=https://your-api.example.com/api/v1/payments/chapa/callback
 CHAPA_RETURN_URL=https://your-frontend.example.com/payment/return
 ```
 
-Patient notifications use an **in-app inbox** plus **optional email** through SMTP when enabled. SMS is intentionally not part of this notification layer.
+Patient notifications use an **in-app inbox** plus **optional email** through Brevo SMTP when enabled. SMS is intentionally not part of this notification layer.
 
-Optional email delivery:
+Optional email delivery via Brevo SMTP:
 
 ```bash
 NOTIFICATIONS_EMAIL_ENABLED=true
 FRONTEND_URL=https://heal-link-amber.vercel.app
-SMTP_HOST=smtp.example.com
+SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
-SMTP_USER=
-SMTP_PASSWORD=
-SMTP_FROM_EMAIL=noreply@example.com
+SMTP_USER=your-brevo-login@example.com
+SMTP_PASSWORD=your-brevo-smtp-key
+SMTP_FROM_EMAIL=noreply@your-domain.com
 ACCOUNT_ACTION_TOKEN_EXPIRE_HOURS=24
 ```
 

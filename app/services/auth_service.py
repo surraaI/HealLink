@@ -19,6 +19,7 @@ from app.schemas.auth import TokenResponse
 from app.schemas.patient import PatientCreate, PatientResponse
 from app.services.account_verification_service import AccountVerificationService
 from app.services.patient_service import PatientService
+from app.services.provider_service import ProviderService
 
 settings = get_settings()
 
@@ -26,6 +27,7 @@ settings = get_settings()
 class AuthService:
     def __init__(self) -> None:
         self.patient_service = PatientService()
+        self.provider_service = ProviderService()
         self.verification_service = AccountVerificationService()
 
     async def register(self, db: AsyncSession, payload: PatientCreate) -> TokenResponse:
@@ -40,13 +42,26 @@ class AuthService:
         return await self._issue_token_pair(db, patient)
 
     async def login(self, db: AsyncSession, email: str, password: str) -> TokenResponse:
+        # Try patient login first
         patient = await self.patient_service.authenticate(db, email, password)
-        if not patient:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password",
-            )
-        return await self._issue_token_pair(db, patient)
+        if patient:
+            return await self._issue_token_pair(db, patient)
+        
+        # Try provider login
+        provider = await self.provider_service.authenticate(db, email, password)
+        if provider:
+            if provider.verification_status != "approved":
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Provider account is not approved",
+                )
+            return await self._issue_provider_token_pair(db, provider)
+        
+        # Neither patient nor provider found
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
 
     async def deactivate_patient(self, db: AsyncSession, patient: Patient) -> None:
         await self.patient_service.deactivate_patient(db, patient)
@@ -213,6 +228,27 @@ class AuthService:
             access_token=access_token,
             refresh_token=refresh_token,
             patient=PatientResponse.model_validate(patient),
+        )
+
+    async def _issue_provider_token_pair(self, db: AsyncSession, provider: Provider) -> TokenResponse:
+        access_token = create_access_token(str(provider.id))
+        refresh_jti = str(uuid4())
+        refresh_token = create_refresh_token(str(provider.id), jti=refresh_jti)
+        refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+
+        token_record = RefreshToken(
+            patient_id=None,
+            jti=refresh_jti,
+            token_hash=hash_token(refresh_token),
+            expires_at=refresh_expires,
+        )
+        db.add(token_record)
+        await db.commit()
+
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            patient=ProviderResponse.model_validate(provider),
         )
 
     def _parse_subject(self, subject: str | None) -> int:
