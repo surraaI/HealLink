@@ -25,6 +25,22 @@ class AccountVerificationService:
         body = self._build_verification_body(token, "registration")
         self.mailer.send_email(patient.email, subject, body)
 
+    async def resend_verification(self, db: AsyncSession, email: str) -> None:
+        """Resend verification code to an unverified user."""
+        patient = await db.scalar(select(Patient).where(Patient.email == email.lower()))
+        if not patient:
+            # Don't reveal if email exists for security
+            return
+        if patient.is_verified:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email is already verified",
+            )
+        token = await self._issue_token(db, patient, AccountActionPurpose.EMAIL_VERIFICATION)
+        subject = "Verify your HealLink email"
+        body = self._build_verification_body(token, "registration")
+        self.mailer.send_email(patient.email, subject, body)
+
     async def verify_email(self, db: AsyncSession, token: str) -> Patient:
         try:
             record = await self._consume_token(db, token, AccountActionPurpose.EMAIL_VERIFICATION)

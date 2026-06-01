@@ -9,6 +9,7 @@ from app.schemas.auth import (
     PasswordResetConfirmRequest,
     PasswordResetRequest,
     RefreshTokenRequest,
+    ResendVerificationRequest,
     TokenResponse,
 )
 from app.schemas.patient import PatientCreate, PatientLogin
@@ -58,6 +59,15 @@ async def verify_email(
 ) -> dict[str, str]:
     await auth_service.verify_email(db, payload.token)
     return {"message": "Email verified successfully"}
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    payload: ResendVerificationRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    await auth_service.verification_service.resend_verification(db, payload.email)
+    return {"message": "If the email exists and is unverified, a new verification code was sent"}
 
 
 @router.post("/forgot-password")
