@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     account_action_token_expire_hours: int = 24
 
     notifications_email_enabled: bool = False
+    frontend_url: str = ""
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""
