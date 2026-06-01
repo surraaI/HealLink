@@ -1,7 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import get_settings
 from app.routers import appointments, auth, health, notifications, patients, payments, providers, admin
+
+
+settings = get_settings()
+
+
+def _cors_origins() -> list[str]:
+    origins = ["http://localhost:3000"]
+    frontend_url = settings.frontend_url.strip().rstrip("/")
+    if frontend_url:
+        origins.append(frontend_url)
+    return origins
 
 
 def create_app() -> FastAPI:
@@ -12,7 +24,7 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000"],
+        allow_origins=_cors_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
