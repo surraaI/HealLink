@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     frontend_url: str = ""
     smtp_host: str = ""
     smtp_port: int = 587
+    smtp_alternative_ports: list[int] = [2525, 587, 465]
     smtp_timeout_seconds: float = 30.0
     smtp_user: str = ""
     smtp_password: str = ""

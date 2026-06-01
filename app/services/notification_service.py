@@ -4,6 +4,7 @@ from email.message import EmailMessage
 from html import escape
 import smtplib
 from socket import gaierror, timeout as socket_timeout
+import time
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -111,7 +112,7 @@ class NotificationService:
         return notif
 
     def _send_email_external(self, to_email: str, subject: str, body_plain: str) -> bool:
-        """Send email via Brevo SMTP."""
+        """Send email via Brevo SMTP with retry logic and alternative ports."""
         if not settings.smtp_host or not settings.smtp_user or not settings.smtp_password:
             logger.warning("Brevo SMTP settings are incomplete; skipping email to %s", to_email)
             return False
@@ -121,62 +122,90 @@ class NotificationService:
             return False
         
         sender = settings.smtp_from_email
-        logger.info(
-            "Attempting to send email to %s using sender %s via %s:%s",
-            to_email,
-            sender,
-            settings.smtp_host,
-            settings.smtp_port,
-        )
+        ports_to_try = settings.smtp_alternative_ports
+        max_retries = 2
         
-        try:
-            message = EmailMessage()
-            message["From"] = f"HealLink <{sender}>"
-            message["To"] = to_email
-            message["Subject"] = subject
-            message.set_content(body_plain)
-            message.add_alternative(
-                (
-                    "<div style='font-family: Arial, sans-serif; max-width: 600px; line-height: 1.6;'>"
-                    f"{escape(body_plain).replace(chr(10), '<br>')}"
-                    "</div>"
-                ),
-                subtype="html",
-            )
+        for port in ports_to_try:
+            for attempt in range(max_retries):
+                logger.info(
+                    "Attempting to send email to %s using sender %s via %s:%s (port %d, attempt %d/%d)",
+                    to_email,
+                    sender,
+                    settings.smtp_host,
+                    port,
+                    port,
+                    attempt + 1,
+                    max_retries,
+                )
+                
+                try:
+                    message = EmailMessage()
+                    message["From"] = f"HealLink <{sender}>"
+                    message["To"] = to_email
+                    message["Subject"] = subject
+                    message.set_content(body_plain)
+                    message.add_alternative(
+                        (
+                            "<div style='font-family: Arial, sans-serif; max-width: 600px; line-height: 1.6;'>"
+                            f"{escape(body_plain).replace(chr(10), '<br>')}"
+                            "</div>"
+                        ),
+                        subtype="html",
+                    )
 
-            with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=settings.smtp_timeout_seconds) as server:
-                server.ehlo()
-                server.starttls()
-                server.ehlo()
-                server.login(settings.smtp_user, settings.smtp_password)
-                server.send_message(message)
+                    with smtplib.SMTP(settings.smtp_host, port, timeout=settings.smtp_timeout_seconds) as server:
+                        server.ehlo()
+                        if port != 465:  # 465 is typically SSL, not STARTTLS
+                            server.starttls()
+                            server.ehlo()
+                        server.login(settings.smtp_user, settings.smtp_password)
+                        server.send_message(message)
 
-            logger.info("Email sent successfully via Brevo SMTP to %s from %s", to_email, sender)
-            return True
-        except socket_timeout:
-            logger.exception(
-                "Brevo SMTP connection timed out for %s via %s:%s after %ss",
-                to_email,
-                settings.smtp_host,
-                settings.smtp_port,
-                settings.smtp_timeout_seconds,
-            )
-            return False
-        except gaierror:
-            logger.exception(
-                "Brevo SMTP host resolution failed for %s via %s:%s",
-                to_email,
-                settings.smtp_host,
-                settings.smtp_port,
-            )
-            return False
-        except Exception:
-            logger.exception(
-                "Brevo SMTP email failed to %s from %s via %s:%s",
-                to_email,
-                sender,
-                settings.smtp_host,
-                settings.smtp_port,
-            )
-            # do not raise — email failure must never crash the main request
-            return False
+                    logger.info("Email sent successfully via Brevo SMTP to %s from %s on port %d", to_email, sender, port)
+                    return True
+                except socket_timeout:
+                    logger.warning(
+                        "Brevo SMTP connection timed out for %s via %s:%d after %ss (attempt %d/%d)",
+                        to_email,
+                        settings.smtp_host,
+                        port,
+                        settings.smtp_timeout_seconds,
+                        attempt + 1,
+                        max_retries,
+                    )
+                    if attempt < max_retries - 1:
+                        delay = 1.0 * (2 ** attempt)
+                        logger.info("Retrying port %d in %.1f seconds...", port, delay)
+                        time.sleep(delay)
+                    else:
+                        logger.warning("All attempts failed for port %d, trying next port", port)
+                        break
+                except gaierror:
+                    logger.exception(
+                        "Brevo SMTP host resolution failed for %s via %s:%d",
+                        to_email,
+                        settings.smtp_host,
+                        port,
+                    )
+                    return False
+                except Exception as e:
+                    logger.warning(
+                        "Brevo SMTP email failed to %s from %s via %s:%d (attempt %d/%d): %s",
+                        to_email,
+                        sender,
+                        settings.smtp_host,
+                        port,
+                        attempt + 1,
+                        max_retries,
+                        str(e),
+                    )
+                    if attempt < max_retries - 1:
+                        delay = 1.0 * (2 ** attempt)
+                        logger.info("Retrying port %d in %.1f seconds...", port, delay)
+                        time.sleep(delay)
+                    else:
+                        logger.warning("All attempts failed for port %d, trying next port", port)
+                        break
+        
+        logger.error("All SMTP ports failed for %s", to_email)
+        return False
