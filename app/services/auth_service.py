@@ -13,6 +13,7 @@ from app.core.security import (
     hash_token,
 )
 from app.models.patient import Patient
+from app.models.provider import Provider
 from app.models.refresh_token import RefreshToken
 from app.schemas.auth import TokenResponse
 from app.schemas.patient import PatientCreate, PatientResponse
@@ -170,6 +171,28 @@ class AuthService:
                 detail="Please verify your email before logging in",
             )
         return patient
+
+    async def get_provider_from_token(self, db: AsyncSession, token: str) -> Provider:
+        payload = decode_token(token)
+        if not payload or "sub" not in payload or payload.get("type") != "access":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token",
+            )
+        provider_id = self._parse_subject(payload.get("sub"))
+        stmt = select(Provider).where(Provider.id == provider_id)
+        provider = await db.scalar(stmt)
+        if not provider:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Provider not found",
+            )
+        if provider.verification_status != "approved":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Provider account is not approved",
+            )
+        return provider
 
     async def _issue_token_pair(self, db: AsyncSession, patient: Patient) -> TokenResponse:
         access_token = create_access_token(str(patient.id))

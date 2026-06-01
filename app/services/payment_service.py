@@ -8,6 +8,7 @@ from app.core.config import get_settings
 from app.models.appointment import Appointment, ServiceCatalog
 from app.models.payment import Payment, PaymentStatus
 from app.services.chapa_service import ChapaService
+from app.services.qr_checkin_service import QRCheckinService
 
 
 class PaymentService:
@@ -15,6 +16,7 @@ class PaymentService:
         settings = get_settings()
         self.settings = settings
         self.chapa = ChapaService(base_url=settings.chapa_base_url, secret_key=settings.chapa_secret_key)
+        self.qr_checkin_service = QRCheckinService()
 
     async def initialize_chapa_for_appointment(
         self,
@@ -99,6 +101,7 @@ class PaymentService:
         status_value = (verify_result.status or "").lower()
         if status_value == "success":
             payment.status = PaymentStatus.SUCCESS
+            await self.qr_checkin_service.generate_checkin(db, payment.appointment_id)
         elif status_value in {"failed", "cancelled"}:
             payment.status = PaymentStatus.FAILED
         else:

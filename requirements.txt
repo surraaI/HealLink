@@ -43,3 +43,5 @@ uvloop==0.22.1
 watchfiles==1.1.1
 websockets==16.0
 cloudinary==1.44.2
+qrcode==7.4.2
+pillow==10.4.0
