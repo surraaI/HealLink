@@ -4,6 +4,7 @@ from fastapi import HTTPException, status, UploadFile
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import hash_password, verify_password
 from app.models.appointment import ServiceCatalog
 from app.models.provider import Provider, ProviderType, ServiceSlot
 from app.schemas.provider import ProviderCreate, ProviderServiceCreate, ServiceSlotCreate
@@ -19,6 +20,12 @@ def _first_text(*values: str | None) -> str | None:
 
 
 class ProviderService:
+    async def authenticate(self, db: AsyncSession, email: str, password: str) -> Provider | None:
+        provider = await db.scalar(select(Provider).where(Provider.email == email.lower()))
+        if provider and verify_password(password, provider.hashed_password):
+            return provider
+        return None
+
     async def list_providers(self, db: AsyncSession, provider_type: str | None, location: str | None) -> list[Provider]:
         statement = select(Provider)
         statement = statement.where(Provider.verification_status == "approved")
@@ -49,10 +56,14 @@ class ProviderService:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="name is required")
         if not location:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="location is required")
+        if not payload.password:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="password is required")
+        
         provider = Provider(
             name=name,
             provider_type=provider_type,  # type: ignore[arg-type]
             email=payload.email.lower(),
+            hashed_password=hash_password(payload.password),
             phone=_first_text(payload.phone, payload.phone_number),
             specialization=payload.specialization,
             license_number=payload.license_number,
@@ -90,11 +101,15 @@ async def register_provider_with_document(db: AsyncSession, form_data, license_f
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="name is required")
     if not location:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="location is required")
+    password = getattr(form_data, "password", None)
+    if not password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="password is required")
 
     provider = Provider(
         name=name,
         provider_type=provider_type,  # type: ignore[arg-type]
         email=form_data.email.lower(),
+        hashed_password=hash_password(password),
         phone=_first_text(getattr(form_data, "phone", None), getattr(form_data, "phone_number", None)),
         specialization=getattr(form_data, "specialization", None),
         license_number=getattr(form_data, "license_number", None),

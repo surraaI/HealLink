@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.models.provider import ProviderType
 
@@ -12,7 +12,7 @@ class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
-    patient: PatientResponse
+    patient: Union[PatientResponse, ProviderResponse]
 
 
 class RefreshTokenRequest(BaseModel):
@@ -30,6 +30,15 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetConfirmRequest(BaseModel):
     token: str
     new_password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password should have at least 8 characters")
+        if len(v) > 128:
+            raise ValueError("Password should not exceed 128 characters")
+        return v
 
 
 class UserRegisterData(BaseModel):

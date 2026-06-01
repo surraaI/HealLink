@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class PatientCreate(BaseModel):
@@ -18,6 +18,15 @@ class PatientCreate(BaseModel):
 class PatientLogin(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password should have at least 8 characters")
+        if len(v) > 128:
+            raise ValueError("Password should not exceed 128 characters")
+        return v
 
 
 class PatientUpdate(BaseModel):

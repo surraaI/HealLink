@@ -20,6 +20,7 @@ class Provider(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     provider_type: Mapped[ProviderType] = mapped_column(SQLAlchemyEnum(ProviderType), nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     specialization: Mapped[str | None] = mapped_column(String(255), nullable=True)
     license_number: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
