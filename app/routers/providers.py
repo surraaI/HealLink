@@ -6,7 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.models.patient import Patient
-from app.schemas.appointment import AppointmentResponse, ServiceCatalogResponse
 from app.schemas.provider import (
     BookRecheckRequest,
     NeedsRecheckRequest,
@@ -17,6 +16,7 @@ from app.schemas.provider import (
     ServiceSlotCreate,
     ServiceSlotResponse,
 )
+from app.schemas.appointment import AppointmentResponse, ServiceCatalogResponse
 from app.services.appointment_provider_service import AppointmentProviderService
 from app.services.notification_service import NotificationService
 from app.services.provider_service import ProviderService, register_provider_with_document
@@ -150,3 +150,18 @@ async def provider_book_recheck_visit(
     await db.commit()
     await db.refresh(new_appointment)
     return AppointmentResponse.model_validate(new_appointment)
+
+
+@router.post("/{provider_id}/appointments/{appointment_id}/reschedule", response_model=AppointmentResponse)
+async def provider_reschedule_appointment(
+    provider_id: int,
+    appointment_id: int,
+    payload: BookRecheckRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> AppointmentResponse:
+    """Reschedule an appointment to a new slot with QR code reactivation."""
+    appointment = await appointment_provider_service.reschedule_appointment(
+        db, provider_id, appointment_id, payload.slot_id
+    )
+    return AppointmentResponse.model_validate(appointment)
+
