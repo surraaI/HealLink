@@ -4,14 +4,17 @@ from fastapi import APIRouter, Depends, Path, Query
 
 from app.api.dependencies import require_super_admin
 from app.db.session import get_db
+from app.models.patient import Patient
 from app.schemas.provider import AdminProviderResponse, VerifyProviderRequest, AdminStatsResponse, SignedDocumentResponse
 from app.services.provider_service import get_providers_by_status, verify_provider, get_provider_stats
 from app.services.storage_service import generate_signed_url
+from app.services.auth_service import AuthService
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.provider import Provider
 from sqlalchemy import select
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
+auth_service = AuthService()
 
 
 @router.get("/providers", response_model=list[AdminProviderResponse])
@@ -58,3 +61,18 @@ async def get_stats(
 ):
     stats = await get_provider_stats(db)
     return AdminStatsResponse.model_validate(stats)
+
+
+@router.delete("/patients/{patient_id}")
+async def delete_patient(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    patient_id: Annotated[int, Path(...)],
+    _admin=Depends(require_super_admin),
+) -> dict[str, str]:
+    patient = await db.scalar(select(Patient).where(Patient.id == patient_id))
+    if not patient:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Patient not found")
+    await auth_service.deactivate_patient(db, patient)
+    return {"message": "Patient deleted successfully"}

@@ -121,6 +121,6 @@ class NotificationService:
                     smtp.login(settings.smtp_user, settings.smtp_password)
                 smtp.sendmail(settings.smtp_from_email, [to_email], msg.as_string())
         except Exception as exc:  # noqa: BLE001
-            logger.exception("SMTP send failed: %s", exc)
+            logger.warning("SMTP send failed: %s", exc)
             return False
         return True

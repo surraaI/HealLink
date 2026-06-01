@@ -47,6 +47,9 @@ class AuthService:
             )
         return await self._issue_token_pair(db, patient)
 
+    async def deactivate_patient(self, db: AsyncSession, patient: Patient) -> None:
+        await self.patient_service.deactivate_patient(db, patient)
+
     async def refresh(self, db: AsyncSession, refresh_token: str) -> TokenResponse:
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != "refresh":
@@ -84,6 +87,16 @@ class AuthService:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Patient not found",
+            )
+        if not patient.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account is deactivated",
+            )
+        if not patient.is_verified:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Please verify your email before logging in",
             )
 
         token_record.revoked_at = datetime.utcnow()
@@ -145,6 +158,16 @@ class AuthService:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Patient not found",
+            )
+        if not patient.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account is deactivated",
+            )
+        if not patient.is_verified:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Please verify your email before logging in",
             )
         return patient
 
