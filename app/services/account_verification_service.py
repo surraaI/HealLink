@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
-from secrets import token_urlsafe
-from urllib.parse import quote
+from secrets import randbelow, token_urlsafe
 
 from fastapi import HTTPException, status
 from sqlalchemy import delete, select
@@ -87,7 +86,7 @@ class AccountVerificationService:
                 AccountActionToken.used_at.is_(None),
             )
         )
-        raw_token = token_urlsafe(32)
+        raw_token = self._generate_code(purpose)
         record = AccountActionToken(
             patient_id=patient.id,
             purpose=purpose,
@@ -124,13 +123,11 @@ class AccountVerificationService:
         return record
 
     def _build_verification_body(self, token: str, reason: str) -> str:
-        verify_url = self._build_frontend_verify_url(token)
         return (
             f"Hi,\n\n"
-            f"Thanks for starting your {reason} with HealLink. To complete the process, please verify your email address using the link below.\n\n"
-            f"Verify your email:\n{verify_url}\n\n"
-            f"Verification code:\n{token}\n\n"
-            f"How to use it:\n- Open the link above and the website will verify your email automatically.\n- If the link does not work, paste the code into the 'Verify Email' field in the app or website.\n\n"
+            f"Thanks for starting your {reason} with HealLink. To complete the process, please enter the 6-digit verification code below.\n\n"
+            f"Verification code: {token}\n\n"
+            f"How to use it:\n- Open the Verify Email screen in the app or website and enter this 6-digit code.\n\n"
             f"This code expires in {settings.account_action_token_expire_hours} hours.\n\n"
             "If you did not request this, you can safely ignore this message.\n\n"
             "Thanks,\nThe HealLink team"
@@ -148,21 +145,17 @@ class AccountVerificationService:
         )
 
     def _build_email_change_body(self, token: str, new_email: str) -> str:
-        verify_url = self._build_frontend_verify_url(token)
         return (
             f"Hi,\n\n"
-            f"A request was made to change your HealLink account email to {new_email}. To confirm this change, please use the verification link below.\n\n"
-            f"Verify your email:\n{verify_url}\n\n"
-            f"Verification code:\n{token}\n\n"
-            f"How to use it:\n- Open the link above and the website will verify your email automatically.\n- If the link does not work, paste the code into the 'Verify Email' field in the app or website.\n\n"
+            f"A request was made to change your HealLink account email to {new_email}. To confirm this change, please enter the 6-digit verification code below.\n\n"
+            f"Verification code: {token}\n\n"
+            f"How to use it:\n- Open the Verify Email screen in the app or website and enter this 6-digit code.\n\n"
             f"This code expires in {settings.account_action_token_expire_hours} hours.\n\n"
             "If you did not request this change, you can ignore this message or contact support.\n\n"
             "Thanks,\nThe HealLink team"
         )
 
-    def _build_frontend_verify_url(self, token: str) -> str:
-        frontend_url = settings.frontend_url.strip().rstrip("/")
-        if not frontend_url:
-            return token
-        encoded_token = quote(token, safe="")
-        return f"{frontend_url}/verify-email?token={encoded_token}"
+    def _generate_code(self, purpose: AccountActionPurpose) -> str:
+        if purpose in {AccountActionPurpose.EMAIL_VERIFICATION, AccountActionPurpose.EMAIL_CHANGE}:
+            return f"{randbelow(1_000_000):06d}"
+        return token_urlsafe(32)
