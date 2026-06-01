@@ -1,9 +1,11 @@
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import hash_password, verify_password
+from app.models.account_action_token import AccountActionToken
 from app.models.patient import Patient
+from app.models.refresh_token import RefreshToken
 from app.schemas.patient import PatientCreate, PatientUpdate
 
 
@@ -46,7 +48,18 @@ class PatientService:
             return None
         if not verify_password(password, patient.password_hash):
             return None
+        if not patient.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
+        if not patient.is_verified:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Please verify your email before logging in")
         return patient
+
+    async def deactivate_patient(self, db: AsyncSession, patient: Patient) -> None:
+        patient.is_active = False
+        db.add(patient)
+        await db.execute(delete(RefreshToken).where(RefreshToken.patient_id == patient.id))
+        await db.execute(delete(AccountActionToken).where(AccountActionToken.patient_id == patient.id))
+        await db.commit()
 
     async def update_patient(self, db: AsyncSession, patient: Patient, payload: PatientUpdate) -> tuple[Patient, str | None]:
         email_changed: str | None = None
