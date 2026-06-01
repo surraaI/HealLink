@@ -47,6 +47,8 @@ class ProviderResponse(BaseModel):
 
 
 class ProviderRegisterForm(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     name: str | None = None
     provider_type: str
     email: EmailStr
@@ -60,6 +62,7 @@ class ProviderRegisterForm(BaseModel):
     tin_number: str | None = None
     description: str | None = None
     role: Literal["doctor", "clinic", "diagnostic_center"] | None = None
+    license_file: UploadFile | None = None
 
     # helper to be used in FastAPI endpoint as a dependency
     @classmethod
@@ -94,9 +97,8 @@ class ProviderRegisterForm(BaseModel):
             tin_number=tin_number,
             description=description,
             role=role,
+            license_file=license_file,
         )
-        # attach file for router to receive
-        setattr(obj, "license_file", license_file)
         return obj
 
 
