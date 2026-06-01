@@ -45,6 +45,7 @@ Optional email delivery:
 
 ```bash
 NOTIFICATIONS_EMAIL_ENABLED=true
+FRONTEND_URL=https://heal-link-amber.vercel.app
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USER=
