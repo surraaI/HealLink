@@ -19,6 +19,16 @@ def _first_text(*values: str | None) -> str | None:
     return None
 
 
+def _build_provider_registration_body(provider: Provider) -> str:
+    return (
+        f"Hi {provider.name},\n\n"
+        "Thanks for registering as a HealLink provider. We have received your profile and license document and your account is now pending review.\n\n"
+        "Our team will verify your details and update your account status once the review is complete.\n\n"
+        "If you did not create this account, please ignore this message.\n\n"
+        "Thanks,\nThe HealLink team"
+    )
+
+
 class ProviderService:
     async def authenticate(self, db: AsyncSession, email: str, password: str) -> Provider | None:
         provider = await db.scalar(select(Provider).where(Provider.email == email.lower()))
@@ -123,6 +133,12 @@ async def register_provider_with_document(db: AsyncSession, form_data, license_f
     db.add(provider)
     await db.commit()
     await db.refresh(provider)
+
+    NotificationService().send_email(
+        provider.email,
+        "Your HealLink provider registration was received",
+        _build_provider_registration_body(provider),
+    )
 
     # Notify super admin(s) — create admin-scoped notification
     try:
