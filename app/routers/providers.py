@@ -16,6 +16,7 @@ from app.schemas.provider import (
     ProviderRegisterForm,
     ProviderResponse,
     ProviderServiceCreate,
+    ProviderServiceUpdate,
     ProviderUpdateForm,
     ServiceSlotCreate,
     ServiceSlotResponse,
@@ -116,6 +117,47 @@ async def delete_provider_service(
     await db.execute(delete(ServiceCatalog).where(ServiceCatalog.id == service_id))
     await db.commit()
     return {"message": "Service deleted successfully"}
+
+
+@router.patch("/services/{service_id}", response_model=ServiceCatalogResponse)
+async def update_provider_service(
+    service_id: int,
+    payload: ProviderServiceUpdate,
+    current_provider: Annotated[Provider, Depends(get_current_provider)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ServiceCatalogResponse:
+    from sqlalchemy import select
+    from app.models.appointment import ServiceCatalog
+    from fastapi import HTTPException, status
+
+    # Check if service exists and belongs to current provider
+    service = await db.scalar(
+        select(ServiceCatalog).where(
+            ServiceCatalog.id == service_id,
+            ServiceCatalog.provider_id == current_provider.id
+        )
+    )
+    if not service:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
+
+    # Update service fields
+    if payload.name is not None:
+        service.name = payload.name
+    if payload.service_type is not None:
+        service.service_type = payload.service_type
+    if payload.location is not None:
+        service.location = payload.location
+    if payload.price is not None:
+        service.price = payload.price
+    if payload.duration_minutes is not None:
+        service.duration_minutes = payload.duration_minutes
+    if payload.description is not None:
+        service.description = payload.description
+
+    db.add(service)
+    await db.commit()
+    await db.refresh(service)
+    return ServiceCatalogResponse.model_validate(service)
 
 
 @router.get("/me", response_model=ProviderResponse)
