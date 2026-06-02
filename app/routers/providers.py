@@ -2,7 +2,7 @@ from typing import Annotated
 import logging
 
 from fastapi import APIRouter, Depends, Query, UploadFile, File
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_provider
@@ -78,6 +78,46 @@ async def create_provider_service(
     return ServiceCatalogResponse.model_validate(service)
 
 
+@router.delete("/services/{service_id}")
+async def delete_provider_service(
+    service_id: int,
+    current_provider: Annotated[Provider, Depends(get_current_provider)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    from sqlalchemy import select, delete
+    from app.models.appointment import ServiceCatalog
+    from fastapi import HTTPException, status
+
+    # Check if service exists and belongs to current provider
+    service = await db.scalar(
+        select(ServiceCatalog).where(
+            ServiceCatalog.id == service_id,
+            ServiceCatalog.provider_id == current_provider.id
+        )
+    )
+    if not service:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
+
+    # Check if service has any booked appointments
+    from app.models.appointment import Appointment
+    booked_appointments = await db.scalar(
+        select(func.count()).select_from(Appointment).where(
+            Appointment.service_id == service_id,
+            Appointment.status.in_(["booked", "checked_in", "needs_recheck"])
+        )
+    )
+    if booked_appointments and booked_appointments > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete service with active appointments"
+        )
+
+    # Delete the service
+    await db.execute(delete(ServiceCatalog).where(ServiceCatalog.id == service_id))
+    await db.commit()
+    return {"message": "Service deleted successfully"}
+
+
 @router.get("/me", response_model=ProviderResponse)
 async def get_my_profile(
     current_provider: Annotated[Provider, Depends(get_current_provider)],
@@ -135,6 +175,51 @@ async def list_service_slots(
 ) -> list[ServiceSlotResponse]:
     slots = await provider_service.list_service_slots(db, service_id=service_id, only_available=only_available)
     return [ServiceSlotResponse.model_validate(item) for item in slots]
+
+
+@router.delete("/services/{service_id}/slots/{slot_id}")
+async def delete_service_slot(
+    service_id: int,
+    slot_id: int,
+    current_provider: Annotated[Provider, Depends(get_current_provider)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    from sqlalchemy import select, delete
+    from app.models.provider import ServiceSlot
+    from app.models.appointment import ServiceCatalog
+    from fastapi import HTTPException, status
+
+    # Check if service exists and belongs to current provider
+    service = await db.scalar(
+        select(ServiceCatalog).where(
+            ServiceCatalog.id == service_id,
+            ServiceCatalog.provider_id == current_provider.id
+        )
+    )
+    if not service:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
+
+    # Check if slot exists and belongs to the service
+    slot = await db.scalar(
+        select(ServiceSlot).where(
+            ServiceSlot.id == slot_id,
+            ServiceSlot.service_id == service_id
+        )
+    )
+    if not slot:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Slot not found")
+
+    # Check if slot is booked
+    if slot.is_booked:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete booked slot"
+        )
+
+    # Delete the slot
+    await db.execute(delete(ServiceSlot).where(ServiceSlot.id == slot_id))
+    await db.commit()
+    return {"message": "Slot deleted successfully"}
 
 
 @router.post("/{provider_id}/appointments/{appointment_id}/complete", response_model=AppointmentResponse)
@@ -223,4 +308,47 @@ async def provider_reschedule_appointment(
         db, provider_id, appointment_id, payload.slot_id
     )
     return AppointmentResponse.model_validate(appointment)
+
+
+@router.delete("/{provider_id}/appointments/{appointment_id}")
+async def delete_provider_appointment(
+    provider_id: int,
+    appointment_id: int,
+    current_provider: Annotated[Provider, Depends(get_current_provider)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    from app.models.appointment import Appointment
+
+    # Check if appointment exists and belongs to the provider
+    appointment = await db.scalar(
+        select(Appointment).where(Appointment.id == appointment_id)
+    )
+    if not appointment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Appointment not found")
+
+    # Verify the appointment is for this provider's service
+    from app.models.appointment import ServiceCatalog
+    service = await db.scalar(select(ServiceCatalog).where(ServiceCatalog.id == appointment.service_id))
+    if not service or service.provider_id != current_provider.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this appointment")
+
+    # Only allow deletion of cancelled or completed appointments
+    if appointment.status not in ["cancelled", "completed"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only delete cancelled or completed appointments"
+        )
+
+    # Free up the slot if it exists
+    if appointment.slot_id:
+        from app.models.provider import ServiceSlot
+        slot = await db.scalar(select(ServiceSlot).where(ServiceSlot.id == appointment.slot_id))
+        if slot:
+            slot.is_booked = False
+            db.add(slot)
+
+    # Delete the appointment
+    await db.execute(delete(Appointment).where(Appointment.id == appointment_id))
+    await db.commit()
+    return {"message": "Appointment deleted successfully"}
 
