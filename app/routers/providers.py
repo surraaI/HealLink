@@ -1,4 +1,5 @@
 from typing import Annotated
+import logging
 
 from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy import select
@@ -21,6 +22,7 @@ from app.services.appointment_provider_service import AppointmentProviderService
 from app.services.notification_service import NotificationService
 from app.services.provider_service import ProviderService, register_provider_with_document
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/providers", tags=["Providers"])
 provider_service = ProviderService()
 appointment_provider_service = AppointmentProviderService()
@@ -54,6 +56,7 @@ async def create_provider_service(
     payload: ProviderServiceCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ServiceCatalogResponse:
+    logger.info(f"Creating service for provider {provider_id} with payload: {payload}")
     service = await provider_service.create_service(db, provider_id, payload)
     return ServiceCatalogResponse.model_validate(service)
 
