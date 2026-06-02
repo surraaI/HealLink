@@ -159,7 +159,7 @@ class SignedDocumentResponse(BaseModel):
 class ProviderServiceCreate(BaseModel):
     name: str = Field(min_length=2, max_length=200)
     service_type: str = Field(min_length=2, max_length=50)
-    location: str = Field(min_length=2, max_length=255)
+    location: str | None = Field(default=None, min_length=2, max_length=255)
     price: Decimal
     duration_minutes: int = Field(gt=0, le=480)
     description: str | None = Field(default=None, max_length=1000)
