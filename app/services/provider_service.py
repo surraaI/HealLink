@@ -90,10 +90,15 @@ class ProviderService:
         return provider
 
     async def create_service(self, db: AsyncSession, provider_id: int, payload: ProviderServiceCreate) -> ServiceCatalog:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Looking for provider with id {provider_id}")
         provider = await db.scalar(select(Provider).where(Provider.id == provider_id))
         if not provider:
+            logger.error(f"Provider {provider_id} not found in database")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found")
-        
+
+        logger.info(f"Provider {provider_id} found, creating service")
         service = ServiceCatalog(
             provider_id=provider_id,
             name=payload.name,
