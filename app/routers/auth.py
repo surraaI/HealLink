@@ -57,7 +57,7 @@ async def verify_email(
     payload: EmailVerificationRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict[str, str]:
-    await auth_service.verify_email(db, payload.token)
+    await auth_service.verify_account_email(db, payload.token)
     return {"message": "Email verified successfully"}
 
 

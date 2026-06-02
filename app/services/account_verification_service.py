@@ -223,6 +223,7 @@ class AccountVerificationService:
             select(AccountActionToken).where(
                 AccountActionToken.token_hash == token_hash_value,
                 AccountActionToken.purpose == purpose,
+                AccountActionToken.patient_id.is_not(None),
             )
         )
         if not record:
@@ -250,7 +251,13 @@ class AccountVerificationService:
         )
         if not record:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
-        if record.used_at is not None or record.expires_at <= datetime.utcnow():
+        if record.expires_at <= datetime.utcnow():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
+        if record.used_at is not None:
+            if purpose == AccountActionPurpose.EMAIL_VERIFICATION:
+                provider = await db.scalar(select(Provider).where(Provider.id == record.provider_id))
+                if provider and not provider.is_verified:
+                    return record
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
         record.used_at = datetime.utcnow()
         db.add(record)
