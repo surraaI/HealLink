@@ -5,8 +5,10 @@ from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies import get_current_provider
 from app.db.session import get_db
 from app.models.patient import Patient
+from app.models.provider import Provider
 from app.schemas.provider import (
     BookRecheckRequest,
     NeedsRecheckRequest,
@@ -50,14 +52,14 @@ async def register_provider(
     return ProviderResponse.model_validate(provider)
 
 
-@router.post("/{provider_id}/services", response_model=ServiceCatalogResponse)
+@router.post("/services", response_model=ServiceCatalogResponse)
 async def create_provider_service(
-    provider_id: int,
     payload: ProviderServiceCreate,
     db: Annotated[AsyncSession, Depends(get_db)],
+    current_provider: Annotated[Provider, Depends(get_current_provider)],
 ) -> ServiceCatalogResponse:
-    logger.info(f"Creating service for provider {provider_id} with payload: {payload}")
-    service = await provider_service.create_service(db, provider_id, payload)
+    logger.info(f"Creating service for provider {current_provider.id} with payload: {payload}")
+    service = await provider_service.create_service(db, current_provider.id, payload)
     return ServiceCatalogResponse.model_validate(service)
 
 
