@@ -146,6 +146,18 @@ class AuthService:
         patient = await self.verification_service.verify_email(db, token)
         return PatientResponse.model_validate(patient)
 
+    async def verify_account_email(self, db: AsyncSession, token: str) -> PatientResponse | ProviderResponse:
+        try:
+            return await self.verify_email(db, token)
+        except HTTPException as patient_error:
+            if patient_error.status_code != status.HTTP_400_BAD_REQUEST:
+                raise
+            try:
+                provider = await self.verification_service.verify_provider_email(db, token)
+            except HTTPException:
+                raise patient_error
+            return ProviderResponse.model_validate(provider)
+
     async def request_password_reset(self, db: AsyncSession, email: str) -> None:
         await self.verification_service.request_password_reset(db, email)
 
