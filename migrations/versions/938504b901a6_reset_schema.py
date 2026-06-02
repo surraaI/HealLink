@@ -1,8 +1,8 @@
-"""initial_schema
+"""reset_schema
 
-Revision ID: b535557a2e1e
+Revision ID: 938504b901a6
 Revises: 
-Create Date: 2026-06-01 01:12:18.194732
+Create Date: 2026-06-02 11:03:52.415177
 """
 from typing import Sequence, Union
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'b535557a2e1e'
+revision: str = '938504b901a6'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -51,6 +51,7 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('provider_type', sa.Enum('DOCTOR', 'CLINIC', 'DIAGNOSTIC_CENTER', name='providertype'), nullable=False),
     sa.Column('email', sa.String(length=255), nullable=False),
+    sa.Column('hashed_password', sa.String(length=255), nullable=False),
     sa.Column('phone', sa.String(length=30), nullable=True),
     sa.Column('specialization', sa.String(length=255), nullable=True),
     sa.Column('license_number', sa.String(length=100), nullable=True),
@@ -64,6 +65,8 @@ def upgrade() -> None:
     sa.Column('rejection_reason', sa.Text(), nullable=True),
     sa.Column('verified_by', sa.Integer(), nullable=True),
     sa.Column('verified_at', sa.DateTime(), nullable=True),
+    sa.Column('average_rating', sa.Float(), server_default='0', nullable=False),
+    sa.Column('review_count', sa.Integer(), server_default='0', nullable=False),
     sa.ForeignKeyConstraint(['verified_by'], ['providers.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -122,6 +125,28 @@ def upgrade() -> None:
     op.create_index(op.f('ix_service_catalog_location'), 'service_catalog', ['location'], unique=False)
     op.create_index(op.f('ix_service_catalog_provider_id'), 'service_catalog', ['provider_id'], unique=False)
     op.create_index(op.f('ix_service_catalog_service_type'), 'service_catalog', ['service_type'], unique=False)
+    op.create_table('provider_schedules',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('provider_id', sa.Integer(), nullable=False),
+    sa.Column('service_id', sa.Integer(), nullable=True),
+    sa.Column('schedule_type', sa.Enum('DAILY', 'WEEKLY', 'CUSTOM', name='scheduletype'), nullable=False),
+    sa.Column('day_of_week', sa.Integer(), nullable=True),
+    sa.Column('start_time', sa.Time(), nullable=False),
+    sa.Column('end_time', sa.Time(), nullable=False),
+    sa.Column('slot_duration_minutes', sa.Integer(), nullable=False),
+    sa.Column('valid_from', sa.DateTime(), nullable=False),
+    sa.Column('valid_until', sa.DateTime(), nullable=True),
+    sa.Column('is_active', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['provider_id'], ['providers.id'], ),
+    sa.ForeignKeyConstraint(['service_id'], ['service_catalog.id'], ),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('provider_id', 'service_id', 'day_of_week', 'start_time', name='unique_provider_schedule_slot')
+    )
+    op.create_index(op.f('ix_provider_schedules_id'), 'provider_schedules', ['id'], unique=False)
+    op.create_index(op.f('ix_provider_schedules_provider_id'), 'provider_schedules', ['provider_id'], unique=False)
+    op.create_index(op.f('ix_provider_schedules_service_id'), 'provider_schedules', ['service_id'], unique=False)
     op.create_table('service_slots',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('service_id', sa.Integer(), nullable=False),
@@ -144,9 +169,10 @@ def upgrade() -> None:
     sa.Column('follow_up_of_id', sa.Integer(), nullable=True),
     sa.Column('continuation_appointment_id', sa.Integer(), nullable=True),
     sa.Column('appointment_at', sa.DateTime(), nullable=False),
-    sa.Column('status', sa.Enum('BOOKED', 'CANCELLED', 'COMPLETED', 'NEEDS_RECHECK', 'FOLLOW_UP_BOOKED', name='appointmentstatus'), nullable=False),
+    sa.Column('status', sa.Enum('BOOKED', 'CANCELLED', 'COMPLETED', 'NEEDS_RECHECK', 'FOLLOW_UP_BOOKED', 'CHECKED_IN', name='appointmentstatus'), nullable=False),
     sa.Column('note', sa.Text(), nullable=True),
     sa.Column('provider_recheck_reason', sa.Text(), nullable=True),
+    sa.Column('check_in_time', sa.DateTime(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['continuation_appointment_id'], ['appointments.id'], ),
     sa.ForeignKeyConstraint(['follow_up_of_id'], ['appointments.id'], ),
@@ -162,6 +188,19 @@ def upgrade() -> None:
     op.create_index(op.f('ix_appointments_patient_id'), 'appointments', ['patient_id'], unique=False)
     op.create_index(op.f('ix_appointments_service_id'), 'appointments', ['service_id'], unique=False)
     op.create_index(op.f('ix_appointments_slot_id'), 'appointments', ['slot_id'], unique=False)
+    op.create_table('diagnostic_results',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('appointment_id', sa.Integer(), nullable=False),
+    sa.Column('status', sa.Enum('PENDING', 'READY', 'COLLECTED', name='diagnosticresultstatus'), nullable=False),
+    sa.Column('updated_by_provider_id', sa.Integer(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['appointment_id'], ['appointments.id'], ),
+    sa.ForeignKeyConstraint(['updated_by_provider_id'], ['providers.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_diagnostic_results_appointment_id'), 'diagnostic_results', ['appointment_id'], unique=True)
+    op.create_index(op.f('ix_diagnostic_results_id'), 'diagnostic_results', ['id'], unique=False)
     op.create_table('notifications',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('patient_id', sa.Integer(), nullable=True),
@@ -202,11 +241,56 @@ def upgrade() -> None:
     op.create_index(op.f('ix_payments_id'), 'payments', ['id'], unique=False)
     op.create_index(op.f('ix_payments_patient_id'), 'payments', ['patient_id'], unique=False)
     op.create_index(op.f('ix_payments_tx_ref'), 'payments', ['tx_ref'], unique=True)
+    op.create_table('qr_checkins',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('appointment_id', sa.Integer(), nullable=False),
+    sa.Column('card_number', sa.String(length=6), nullable=False),
+    sa.Column('qr_image_b64', sa.Text(), nullable=False),
+    sa.Column('status', sa.Enum('ACTIVE', 'USED', 'EXPIRED', name='qrcheckinstatus'), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('expires_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('used_at', sa.DateTime(timezone=True), nullable=True),
+    sa.Column('used_by_provider_id', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['appointment_id'], ['appointments.id'], ),
+    sa.ForeignKeyConstraint(['used_by_provider_id'], ['providers.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_qr_checkins_appointment_id'), 'qr_checkins', ['appointment_id'], unique=True)
+    op.create_index(op.f('ix_qr_checkins_card_number'), 'qr_checkins', ['card_number'], unique=False)
+    op.create_index(op.f('ix_qr_checkins_id'), 'qr_checkins', ['id'], unique=False)
+    op.create_table('reviews',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('patient_id', sa.Integer(), nullable=False),
+    sa.Column('provider_id', sa.Integer(), nullable=False),
+    sa.Column('appointment_id', sa.Integer(), nullable=False),
+    sa.Column('rating', sa.Integer(), nullable=False),
+    sa.Column('comment', sa.Text(), nullable=True),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.CheckConstraint('rating >= 1 AND rating <= 5', name='check_rating_range'),
+    sa.ForeignKeyConstraint(['appointment_id'], ['appointments.id'], ),
+    sa.ForeignKeyConstraint(['patient_id'], ['patients.id'], ),
+    sa.ForeignKeyConstraint(['provider_id'], ['providers.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_reviews_appointment_id'), 'reviews', ['appointment_id'], unique=True)
+    op.create_index(op.f('ix_reviews_id'), 'reviews', ['id'], unique=False)
+    op.create_index(op.f('ix_reviews_patient_id'), 'reviews', ['patient_id'], unique=False)
+    op.create_index(op.f('ix_reviews_provider_id'), 'reviews', ['provider_id'], unique=False)
     # ### end Alembic commands ###
 
 
 def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index(op.f('ix_reviews_provider_id'), table_name='reviews')
+    op.drop_index(op.f('ix_reviews_patient_id'), table_name='reviews')
+    op.drop_index(op.f('ix_reviews_id'), table_name='reviews')
+    op.drop_index(op.f('ix_reviews_appointment_id'), table_name='reviews')
+    op.drop_table('reviews')
+    op.drop_index(op.f('ix_qr_checkins_id'), table_name='qr_checkins')
+    op.drop_index(op.f('ix_qr_checkins_card_number'), table_name='qr_checkins')
+    op.drop_index(op.f('ix_qr_checkins_appointment_id'), table_name='qr_checkins')
+    op.drop_table('qr_checkins')
     op.drop_index(op.f('ix_payments_tx_ref'), table_name='payments')
     op.drop_index(op.f('ix_payments_patient_id'), table_name='payments')
     op.drop_index(op.f('ix_payments_id'), table_name='payments')
@@ -217,6 +301,9 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_notifications_id'), table_name='notifications')
     op.drop_index(op.f('ix_notifications_appointment_id'), table_name='notifications')
     op.drop_table('notifications')
+    op.drop_index(op.f('ix_diagnostic_results_id'), table_name='diagnostic_results')
+    op.drop_index(op.f('ix_diagnostic_results_appointment_id'), table_name='diagnostic_results')
+    op.drop_table('diagnostic_results')
     op.drop_index(op.f('ix_appointments_slot_id'), table_name='appointments')
     op.drop_index(op.f('ix_appointments_service_id'), table_name='appointments')
     op.drop_index(op.f('ix_appointments_patient_id'), table_name='appointments')
@@ -230,6 +317,10 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_service_slots_is_booked'), table_name='service_slots')
     op.drop_index(op.f('ix_service_slots_id'), table_name='service_slots')
     op.drop_table('service_slots')
+    op.drop_index(op.f('ix_provider_schedules_service_id'), table_name='provider_schedules')
+    op.drop_index(op.f('ix_provider_schedules_provider_id'), table_name='provider_schedules')
+    op.drop_index(op.f('ix_provider_schedules_id'), table_name='provider_schedules')
+    op.drop_table('provider_schedules')
     op.drop_index(op.f('ix_service_catalog_service_type'), table_name='service_catalog')
     op.drop_index(op.f('ix_service_catalog_provider_id'), table_name='service_catalog')
     op.drop_index(op.f('ix_service_catalog_location'), table_name='service_catalog')
