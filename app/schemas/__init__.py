@@ -20,6 +20,7 @@ from app.schemas.provider import (
     ProviderCreate,
     ProviderResponse,
     ProviderServiceCreate,
+    ProviderServiceUpdate,
     ServiceSlotCreate,
     ServiceSlotResponse,
 )
@@ -36,6 +37,7 @@ __all__ = [
     "ProviderCreate",
     "ProviderResponse",
     "ProviderServiceCreate",
+    "ProviderServiceUpdate",
     "ServiceSlotCreate",
     "ServiceSlotResponse",
     "NeedsRecheckRequest",

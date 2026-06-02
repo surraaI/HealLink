@@ -168,6 +168,15 @@ class ProviderServiceCreate(BaseModel):
     description: str | None = Field(default=None, max_length=1000)
 
 
+class ProviderServiceUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=200)
+    service_type: str | None = Field(default=None, min_length=2, max_length=50)
+    location: str | None = Field(default=None, max_length=255)
+    price: Decimal | None = Field(default=None)
+    duration_minutes: int | None = Field(default=None, gt=0, le=480)
+    description: str | None = Field(default=None, max_length=1000)
+
+
 class ProviderUpdateForm(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
