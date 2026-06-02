@@ -64,11 +64,11 @@ class NotificationService:
         await db.flush()
         return in_app
 
-    async def stage_admin_event(self, db: AsyncSession, *, title: str, body: str) -> Notification:
-        """Create an admin-scoped notification (not tied to a patient). Does not commit."""
+    async def stage_officer_event(self, db: AsyncSession, *, title: str, body: str) -> Notification:
+        """Create an officer-scoped notification (not tied to a patient). Does not commit."""
         in_app = Notification(
             patient_id=None,
-            channel=NotificationChannel.ADMIN,
+            channel=NotificationChannel.OFFICER,
             title=title,
             body=body,
             appointment_id=None,
