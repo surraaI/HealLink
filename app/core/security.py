@@ -26,7 +26,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     )
 
 
-def _create_token(subject: str, token_type: str, expires_delta: timedelta, jti: str | None = None) -> str:
+def _create_token(
+    subject: str,
+    token_type: str,
+    expires_delta: timedelta,
+    jti: str | None = None,
+    role: str | None = None,
+) -> str:
     now = datetime.now(timezone.utc)
     expire = now + expires_delta
     payload = {
@@ -36,23 +42,27 @@ def _create_token(subject: str, token_type: str, expires_delta: timedelta, jti: 
         "exp": expire,
         "jti": jti or str(uuid4()),
     }
+    if role:
+        payload["role"] = role
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
-def create_access_token(subject: str) -> str:
+def create_access_token(subject: str, role: str | None = None) -> str:
     return _create_token(
         subject=subject,
         token_type="access",
         expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
+        role=role,
     )
 
 
-def create_refresh_token(subject: str, jti: str | None = None) -> str:
+def create_refresh_token(subject: str, jti: str | None = None, role: str | None = None) -> str:
     return _create_token(
         subject=subject,
         token_type="refresh",
         expires_delta=timedelta(days=settings.refresh_token_expire_days),
         jti=jti,
+        role=role,
     )
 
 

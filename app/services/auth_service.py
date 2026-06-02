@@ -17,6 +17,7 @@ from app.models.provider import Provider
 from app.models.refresh_token import RefreshToken
 from app.schemas.auth import TokenResponse
 from app.schemas.patient import PatientCreate, PatientResponse
+from app.schemas.provider import ProviderResponse
 from app.services.account_verification_service import AccountVerificationService
 from app.services.patient_service import PatientService
 from app.services.provider_service import ProviderService
@@ -50,10 +51,10 @@ class AuthService:
         # Try provider login
         provider = await self.provider_service.authenticate(db, email, password)
         if provider:
-            if provider.verification_status != "approved":
+            if not provider.is_verified:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Provider account is not approved",
+                    detail="Please verify your provider email before logging in",
                 )
             return await self._issue_provider_token_pair(db, provider)
         
@@ -73,7 +74,8 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid refresh token",
             )
-        patient_id = self._parse_subject(payload.get("sub"))
+        account_id = self._parse_subject(payload.get("sub"))
+        role = payload.get("role", "patient")
         jti = payload.get("jti")
         if not jti:
             raise HTTPException(
@@ -98,7 +100,26 @@ class AuthService:
                 detail="Refresh token expired or revoked",
             )
 
-        patient = await self.patient_service.get_by_id(db, patient_id)
+        if role == "provider":
+            provider = await db.scalar(select(Provider).where(Provider.id == account_id))
+            if not provider:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Provider not found",
+                )
+            if not provider.is_verified:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Please verify your provider email before logging in",
+                )
+
+            token_record.revoked_at = datetime.utcnow()
+            db.add(token_record)
+            await db.commit()
+
+            return await self._issue_provider_token_pair(db, provider)
+
+        patient = await self.patient_service.get_by_id(db, account_id)
         if not patient:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -169,6 +190,11 @@ class AuthService:
                 detail="Invalid or expired token",
             )
         patient_id = self._parse_subject(payload.get("sub"))
+        if payload.get("role") == "provider":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Patient token required",
+            )
         patient = await self.patient_service.get_by_id(db, patient_id)
         if not patient:
             raise HTTPException(
@@ -195,12 +221,22 @@ class AuthService:
                 detail="Invalid or expired token",
             )
         provider_id = self._parse_subject(payload.get("sub"))
+        if payload.get("role") != "provider":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Provider token required",
+            )
         stmt = select(Provider).where(Provider.id == provider_id)
         provider = await db.scalar(stmt)
         if not provider:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Provider not found",
+            )
+        if not provider.is_verified:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Please verify your provider email before logging in",
             )
         if provider.verification_status != "approved":
             raise HTTPException(
@@ -210,9 +246,9 @@ class AuthService:
         return provider
 
     async def _issue_token_pair(self, db: AsyncSession, patient: Patient) -> TokenResponse:
-        access_token = create_access_token(str(patient.id))
+        access_token = create_access_token(str(patient.id), role="patient")
         refresh_jti = str(uuid4())
-        refresh_token = create_refresh_token(str(patient.id), jti=refresh_jti)
+        refresh_token = create_refresh_token(str(patient.id), jti=refresh_jti, role="patient")
         refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
 
         token_record = RefreshToken(
@@ -231,13 +267,14 @@ class AuthService:
         )
 
     async def _issue_provider_token_pair(self, db: AsyncSession, provider: Provider) -> TokenResponse:
-        access_token = create_access_token(str(provider.id))
+        access_token = create_access_token(str(provider.id), role="provider")
         refresh_jti = str(uuid4())
-        refresh_token = create_refresh_token(str(provider.id), jti=refresh_jti)
+        refresh_token = create_refresh_token(str(provider.id), jti=refresh_jti, role="provider")
         refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
 
         token_record = RefreshToken(
             patient_id=None,
+            provider_id=provider.id,
             jti=refresh_jti,
             token_hash=hash_token(refresh_token),
             expires_at=refresh_expires,

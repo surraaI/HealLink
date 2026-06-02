@@ -94,18 +94,21 @@ def upgrade() -> None:
     op.create_index(op.f('ix_account_action_tokens_token_hash'), 'account_action_tokens', ['token_hash'], unique=True)
     op.create_table('refresh_tokens',
     sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('patient_id', sa.Integer(), nullable=False),
+    sa.Column('patient_id', sa.Integer(), nullable=True),
+    sa.Column('provider_id', sa.Integer(), nullable=True),
     sa.Column('jti', sa.String(length=64), nullable=False),
     sa.Column('token_hash', sa.String(length=128), nullable=False),
     sa.Column('expires_at', sa.DateTime(), nullable=False),
     sa.Column('revoked_at', sa.DateTime(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['patient_id'], ['patients.id'], ),
+    sa.ForeignKeyConstraint(['provider_id'], ['providers.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_refresh_tokens_id'), 'refresh_tokens', ['id'], unique=False)
     op.create_index(op.f('ix_refresh_tokens_jti'), 'refresh_tokens', ['jti'], unique=True)
     op.create_index(op.f('ix_refresh_tokens_patient_id'), 'refresh_tokens', ['patient_id'], unique=False)
+    op.create_index(op.f('ix_refresh_tokens_provider_id'), 'refresh_tokens', ['provider_id'], unique=False)
     op.create_index(op.f('ix_refresh_tokens_token_hash'), 'refresh_tokens', ['token_hash'], unique=True)
     op.create_table('service_catalog',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -327,6 +330,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_service_catalog_id'), table_name='service_catalog')
     op.drop_table('service_catalog')
     op.drop_index(op.f('ix_refresh_tokens_token_hash'), table_name='refresh_tokens')
+    op.drop_index(op.f('ix_refresh_tokens_provider_id'), table_name='refresh_tokens')
     op.drop_index(op.f('ix_refresh_tokens_patient_id'), table_name='refresh_tokens')
     op.drop_index(op.f('ix_refresh_tokens_jti'), table_name='refresh_tokens')
     op.drop_index(op.f('ix_refresh_tokens_id'), table_name='refresh_tokens')
