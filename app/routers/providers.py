@@ -16,6 +16,7 @@ from app.schemas.provider import (
     ProviderRegisterForm,
     ProviderResponse,
     ProviderServiceCreate,
+    ProviderUpdateForm,
     ServiceSlotCreate,
     ServiceSlotResponse,
 )
@@ -23,6 +24,7 @@ from app.schemas.appointment import AppointmentResponse, ServiceCatalogResponse
 from app.services.appointment_provider_service import AppointmentProviderService
 from app.services.notification_service import NotificationService
 from app.services.provider_service import ProviderService, register_provider_with_document
+from app.services.storage_service import upload_profile_picture
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/providers", tags=["Providers"])
@@ -52,6 +54,19 @@ async def register_provider(
     return ProviderResponse.model_validate(provider)
 
 
+@router.get("/services", response_model=list[ServiceCatalogResponse])
+async def list_my_services(
+    current_provider: Annotated[Provider, Depends(get_current_provider)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[ServiceCatalogResponse]:
+    from sqlalchemy import select
+    from app.models.appointment import ServiceCatalog
+    services = await db.scalars(
+        select(ServiceCatalog).where(ServiceCatalog.provider_id == current_provider.id)
+    )
+    return [ServiceCatalogResponse.model_validate(item) for item in services]
+
+
 @router.post("/services", response_model=ServiceCatalogResponse)
 async def create_provider_service(
     payload: ProviderServiceCreate,
@@ -61,6 +76,45 @@ async def create_provider_service(
     logger.info(f"Creating service for provider {current_provider.id} with payload: {payload}")
     service = await provider_service.create_service(db, current_provider.id, payload)
     return ServiceCatalogResponse.model_validate(service)
+
+
+@router.get("/me", response_model=ProviderResponse)
+async def get_my_profile(
+    current_provider: Annotated[Provider, Depends(get_current_provider)],
+) -> ProviderResponse:
+    return ProviderResponse.model_validate(current_provider)
+
+
+@router.patch("/me/profile", response_model=ProviderResponse)
+async def update_my_profile(
+    form: Annotated[ProviderUpdateForm, Depends(ProviderUpdateForm.as_form)],
+    current_provider: Annotated[Provider, Depends(get_current_provider)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ProviderResponse:
+    # Handle profile picture upload if provided
+    profile_picture_url = None
+    if form.profile_picture:
+        profile_picture_url = await upload_profile_picture(form.profile_picture, "provider", current_provider.id)
+
+    # Update provider fields
+    if form.name is not None:
+        current_provider.name = form.name
+    if form.phone is not None:
+        current_provider.phone = form.phone
+    if form.specialization is not None:
+        current_provider.specialization = form.specialization
+    if form.location is not None:
+        current_provider.location = form.location
+    if form.address is not None:
+        current_provider.address = form.address
+    if form.description is not None:
+        current_provider.description = form.description
+    if profile_picture_url is not None:
+        current_provider.profile_picture = profile_picture_url
+
+    await db.commit()
+    await db.refresh(current_provider)
+    return ProviderResponse.model_validate(current_provider)
 
 
 @router.post("/services/{service_id}/slots", response_model=ServiceSlotResponse)

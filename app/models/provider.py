@@ -28,11 +28,12 @@ class Provider(Base):
     location: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     address: Mapped[str | None] = mapped_column(String(255), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    profile_picture: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda ctx=None: datetime.utcnow(), nullable=False)
 
     # Email verification
     is_verified: Mapped[bool] = mapped_column(default=False, server_default="false")
-    
+
     # Verification fields
     verification_status: Mapped[str] = mapped_column(
         SQLAlchemyEnum("pending", "approved", "rejected", name="verificationstatus"),
@@ -43,7 +44,7 @@ class Provider(Base):
     rejection_reason: Mapped[str | None] = mapped_column(Text)
     verified_by: Mapped[int | None] = mapped_column(ForeignKey("providers.id"), nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    
+
     # Rating fields
     average_rating: Mapped[float] = mapped_column(default=0.0, server_default="0")
     review_count: Mapped[int] = mapped_column(default=0, server_default="0")
