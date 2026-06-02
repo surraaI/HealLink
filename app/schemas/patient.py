@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from typing import Literal
 
+from fastapi import Form, UploadFile, File
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
@@ -38,6 +39,40 @@ class PatientUpdate(BaseModel):
     gender: str | None = Field(default=None, max_length=30)
 
 
+class PatientUpdateForm(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    email: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    phone_number: str | None = None
+    date_of_birth: str | None = None
+    gender: str | None = None
+    profile_picture: UploadFile | None = None
+
+    @classmethod
+    def as_form(
+        cls,
+        email: str | None = Form(None),
+        first_name: str | None = Form(None),
+        last_name: str | None = Form(None),
+        phone_number: str | None = Form(None),
+        date_of_birth: str | None = Form(None),
+        gender: str | None = Form(None),
+        profile_picture: UploadFile = File(None),
+    ) -> "PatientUpdateForm":
+        obj = cls(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            phone_number=phone_number,
+            date_of_birth=date_of_birth,
+            gender=gender,
+            profile_picture=profile_picture,
+        )
+        return obj
+
+
 class PatientResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -48,6 +83,7 @@ class PatientResponse(BaseModel):
     phone_number: str | None = None
     date_of_birth: date | None = None
     gender: str | None = None
+    profile_picture: str | None = None
     role: str = "patient"
     is_active: bool
     is_verified: bool = False

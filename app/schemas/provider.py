@@ -53,6 +53,7 @@ class ProviderResponse(BaseModel):
     location: str
     address: str | None = None
     description: str | None
+    profile_picture: str | None = None
     is_verified: bool = False
     verification_status: str = "pending"
     created_at: datetime
@@ -163,6 +164,40 @@ class ProviderServiceCreate(BaseModel):
     price: Decimal
     duration_minutes: int = Field(gt=0, le=480)
     description: str | None = Field(default=None, max_length=1000)
+
+
+class ProviderUpdateForm(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    name: str | None = None
+    phone: str | None = None
+    specialization: str | None = None
+    location: str | None = None
+    address: str | None = None
+    description: str | None = None
+    profile_picture: UploadFile | None = None
+
+    @classmethod
+    def as_form(
+        cls,
+        name: str | None = Form(None),
+        phone: str | None = Form(None),
+        specialization: str | None = Form(None),
+        location: str | None = Form(None),
+        address: str | None = Form(None),
+        description: str | None = Form(None),
+        profile_picture: UploadFile = File(None),
+    ) -> "ProviderUpdateForm":
+        obj = cls(
+            name=name,
+            phone=phone,
+            specialization=specialization,
+            location=location,
+            address=address,
+            description=description,
+            profile_picture=profile_picture,
+        )
+        return obj
 
 
 class ServiceSlotCreate(BaseModel):

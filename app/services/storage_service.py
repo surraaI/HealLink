@@ -94,3 +94,41 @@ async def delete_document(cloudinary_url: str) -> None:
     except Exception:
         # Best-effort delete; swallow to avoid failing caller
         return
+
+
+async def upload_profile_picture(file: UploadFile, user_type: str, user_id: int) -> str:
+    # Validate MIME type for images
+    allowed_types = ["image/jpeg", "image/jpg", "image/png", "image/webp"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Uploaded file must be an image (JPEG, PNG, or WebP)"
+        )
+
+    # Read content to check size
+    await file.seek(0)
+    content = await file.read()
+    max_size = 5 * 1024 * 1024  # 5MB
+    if len(content) > max_size:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Image too large (max 5MB)")
+
+    folder = f"heallink/profiles/{user_type}/{user_id}"
+
+    # Upload as image
+    try:
+        result = cloudinary.uploader.upload(
+            io.BytesIO(content),
+            resource_type="image",
+            folder=folder,
+            transformation=[
+                {"width": 400, "height": 400, "crop": "fill", "gravity": "face"},
+                {"quality": "auto"}
+            ]
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to upload profile picture") from exc
+
+    secure_url = result.get("secure_url")
+    if not secure_url:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Upload returned no URL")
+    return secure_url
