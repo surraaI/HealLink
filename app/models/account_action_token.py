@@ -17,7 +17,8 @@ class AccountActionToken(Base):
     __tablename__ = "account_action_tokens"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    patient_id: Mapped[int] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
+    patient_id: Mapped[int | None] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
+    provider_id: Mapped[int | None] = mapped_column(ForeignKey("providers.id"), nullable=True, index=True)
     purpose: Mapped[AccountActionPurpose] = mapped_column(SqlEnum(AccountActionPurpose), nullable=False, index=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     new_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -26,3 +27,4 @@ class AccountActionToken(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
     patient = relationship("Patient")
+    provider = relationship("Provider")

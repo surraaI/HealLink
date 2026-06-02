@@ -9,6 +9,7 @@ from app.core.config import get_settings
 from app.core.security import hash_password, hash_token
 from app.models.account_action_token import AccountActionPurpose, AccountActionToken
 from app.models.patient import Patient
+from app.models.provider import Provider
 from app.models.refresh_token import RefreshToken
 from app.services.notification_service import NotificationService
 
@@ -24,6 +25,12 @@ class AccountVerificationService:
         subject = "Verify your HealLink email"
         body = self._build_verification_body(token, "registration")
         self.mailer.send_email(patient.email, subject, body)
+
+    async def send_provider_registration_verification(self, db: AsyncSession, provider: Provider) -> None:
+        token = await self._issue_token_for_provider(db, provider, AccountActionPurpose.EMAIL_VERIFICATION)
+        subject = "Verify your HealLink provider email"
+        body = self._build_verification_body(token, "provider registration")
+        self.mailer.send_email(provider.email, subject, body)
 
     async def resend_verification(self, db: AsyncSession, email: str) -> None:
         """Resend verification code to an unverified user."""
@@ -41,6 +48,22 @@ class AccountVerificationService:
         body = self._build_verification_body(token, "registration")
         self.mailer.send_email(patient.email, subject, body)
 
+    async def resend_provider_verification(self, db: AsyncSession, email: str) -> None:
+        """Resend verification code to an unverified provider."""
+        provider = await db.scalar(select(Provider).where(Provider.email == email.lower()))
+        if not provider:
+            # Don't reveal if email exists for security
+            return
+        if provider.is_verified:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email is already verified",
+            )
+        token = await self._issue_token_for_provider(db, provider, AccountActionPurpose.EMAIL_VERIFICATION)
+        subject = "Verify your HealLink provider email"
+        body = self._build_verification_body(token, "provider registration")
+        self.mailer.send_email(provider.email, subject, body)
+
     async def verify_email(self, db: AsyncSession, token: str) -> Patient:
         try:
             record = await self._consume_token(db, token, AccountActionPurpose.EMAIL_VERIFICATION)
@@ -56,6 +79,20 @@ class AccountVerificationService:
         await db.refresh(patient)
         return patient
 
+    async def verify_provider_email(self, db: AsyncSession, token: str) -> Provider:
+        try:
+            record = await self._consume_token_for_provider(db, token, AccountActionPurpose.EMAIL_VERIFICATION)
+        except HTTPException:
+            record = await self._consume_token_for_provider(db, token, AccountActionPurpose.EMAIL_CHANGE)
+        provider = await db.scalar(select(Provider).where(Provider.id == record.provider_id))
+        if not provider:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found")
+        provider.is_verified = True
+        db.add(provider)
+        await db.commit()
+        await db.refresh(provider)
+        return provider
+
     async def request_password_reset(self, db: AsyncSession, email: str) -> None:
         patient = await db.scalar(select(Patient).where(Patient.email == email.lower()))
         if not patient:
@@ -64,6 +101,15 @@ class AccountVerificationService:
         subject = "Reset your HealLink password"
         body = self._build_password_reset_body(token)
         self.mailer.send_email(patient.email, subject, body)
+
+    async def request_provider_password_reset(self, db: AsyncSession, email: str) -> None:
+        provider = await db.scalar(select(Provider).where(Provider.email == email.lower()))
+        if not provider:
+            return
+        token = await self._issue_token_for_provider(db, provider, AccountActionPurpose.PASSWORD_RESET)
+        subject = "Reset your HealLink provider password"
+        body = self._build_password_reset_body(token)
+        self.mailer.send_email(provider.email, subject, body)
 
     async def reset_password(self, db: AsyncSession, token: str, new_password: str) -> Patient:
         record = await self._consume_token(db, token, AccountActionPurpose.PASSWORD_RESET)
@@ -77,6 +123,17 @@ class AccountVerificationService:
         await db.refresh(patient)
         return patient
 
+    async def reset_provider_password(self, db: AsyncSession, token: str, new_password: str) -> Provider:
+        record = await self._consume_token_for_provider(db, token, AccountActionPurpose.PASSWORD_RESET)
+        provider = await db.scalar(select(Provider).where(Provider.id == record.provider_id))
+        if not provider:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found")
+        provider.hashed_password = hash_password(new_password)
+        db.add(provider)
+        await db.commit()
+        await db.refresh(provider)
+        return provider
+
     async def request_email_change(self, db: AsyncSession, patient: Patient, new_email: str) -> None:
         token = await self._issue_token(
             db,
@@ -85,6 +142,17 @@ class AccountVerificationService:
             new_email=new_email.lower(),
         )
         subject = "Verify your new HealLink email"
+        body = self._build_email_change_body(token, new_email.lower())
+        self.mailer.send_email(new_email.lower(), subject, body)
+
+    async def request_provider_email_change(self, db: AsyncSession, provider: Provider, new_email: str) -> None:
+        token = await self._issue_token_for_provider(
+            db,
+            provider,
+            AccountActionPurpose.EMAIL_CHANGE,
+            new_email=new_email.lower(),
+        )
+        subject = "Verify your new HealLink provider email"
         body = self._build_email_change_body(token, new_email.lower())
         self.mailer.send_email(new_email.lower(), subject, body)
 
@@ -116,6 +184,34 @@ class AccountVerificationService:
         await db.commit()
         return raw_token
 
+    async def _issue_token_for_provider(
+        self,
+        db: AsyncSession,
+        provider: Provider,
+        purpose: AccountActionPurpose,
+        new_email: str | None = None,
+    ) -> str:
+        await db.execute(
+            delete(AccountActionToken).where(
+                AccountActionToken.provider_id == provider.id,
+                AccountActionToken.purpose == purpose,
+                AccountActionToken.used_at.is_(None),
+            )
+        )
+        raw_token = self._generate_code(purpose)
+        record = AccountActionToken(
+            provider_id=provider.id,
+            purpose=purpose,
+            token_hash=hash_token(raw_token),
+            new_email=new_email,
+            expires_at=datetime.utcnow() + timedelta(hours=settings.account_action_token_expire_hours),
+            used_at=None,
+            created_at=datetime.utcnow(),
+        )
+        db.add(record)
+        await db.commit()
+        return raw_token
+
     async def _consume_token(
         self,
         db: AsyncSession,
@@ -127,6 +223,29 @@ class AccountVerificationService:
             select(AccountActionToken).where(
                 AccountActionToken.token_hash == token_hash_value,
                 AccountActionToken.purpose == purpose,
+            )
+        )
+        if not record:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
+        if record.used_at is not None or record.expires_at <= datetime.utcnow():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired token")
+        record.used_at = datetime.utcnow()
+        db.add(record)
+        await db.commit()
+        return record
+
+    async def _consume_token_for_provider(
+        self,
+        db: AsyncSession,
+        token: str,
+        purpose: AccountActionPurpose,
+    ) -> AccountActionToken:
+        token_hash_value = hash_token(token)
+        record = await db.scalar(
+            select(AccountActionToken).where(
+                AccountActionToken.token_hash == token_hash_value,
+                AccountActionToken.purpose == purpose,
+                AccountActionToken.provider_id.is_not(None),
             )
         )
         if not record:

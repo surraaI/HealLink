@@ -10,6 +10,7 @@ from app.models.provider import Provider, ProviderType, ServiceSlot
 from app.schemas.provider import ProviderCreate, ProviderServiceCreate, ServiceSlotCreate
 from app.services.notification_service import NotificationService
 from app.services.storage_service import upload_license_document
+from app.services.account_verification_service import AccountVerificationService
 
 
 def _first_text(*values: str | None) -> str | None:
@@ -134,11 +135,9 @@ async def register_provider_with_document(db: AsyncSession, form_data, license_f
     await db.commit()
     await db.refresh(provider)
 
-    NotificationService().send_email(
-        provider.email,
-        "Your HealLink provider registration was received",
-        _build_provider_registration_body(provider),
-    )
+    # Send email verification
+    verification_service = AccountVerificationService()
+    await verification_service.send_provider_registration_verification(db, provider)
 
     # Notify super admin(s) — create admin-scoped notification
     try:
