@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.routers import appointments, auth, health, notifications, patients, payments, providers, officer, qr_checkin, diagnostic_results, reviews, schedules, super_admin, analytics
+from app.routers import appointments, auth, health, notifications, patients, payments, providers, officer, officer_auth, qr_checkin, diagnostic_results, reviews, schedules, super_admin, analytics
 
 
 settings = get_settings()
@@ -52,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(diagnostic_results.router, prefix="/api/v1")
     app.include_router(reviews.router, prefix="/api/v1")
     app.include_router(officer.router)
+    app.include_router(officer_auth.router)
     app.include_router(super_admin.router)
     app.include_router(analytics.router)
 

@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends, Path, Query
 from app.api.dependencies import get_db, require_super_admin
 from app.models.super_admin import SuperAdmin
 from app.schemas.auth import TokenResponse
-from app.schemas.officer import OfficerCreate, OfficerResponse
+from app.schemas.officer import OfficerCreate, OfficerResponse, OfficerUpdate
 from app.schemas.platform_stats import PlatformStatsResponse
 from app.schemas.provider import OfficerProviderResponse
-from app.schemas.super_admin import DeactivateRequest, SuperAdminCreate, SuperAdminLogin, SuperAdminResponse
+from app.schemas.super_admin import DeactivateRequest, SuperAdminCreate, SuperAdminLogin, SuperAdminResponse, SuperAdminUpdate
 from app.services.platform_stats_service import PlatformStatsService
 from app.services.storage_service import generate_signed_url
 from app.services.super_admin_service import SuperAdminService
@@ -32,6 +32,15 @@ async def get_profile(
     current_admin: Annotated[SuperAdmin, Depends(require_super_admin)],
 ) -> SuperAdminResponse:
     return SuperAdminResponse.model_validate(current_admin)
+
+
+@router.patch("/profile", response_model=SuperAdminResponse)
+async def update_profile(
+    payload: SuperAdminUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_admin: Annotated[SuperAdmin, Depends(require_super_admin)],
+) -> SuperAdminResponse:
+    return await super_admin_service.update_admin_profile(db, current_admin.id, payload)
 
 
 # Super Admin Management
@@ -68,6 +77,16 @@ async def reactivate_admin(
     current_admin: Annotated[SuperAdmin, Depends(require_super_admin)],
 ) -> SuperAdminResponse:
     return await super_admin_service.reactivate_admin(db, admin_id, current_admin)
+
+
+@router.patch("/admins/{admin_id}", response_model=SuperAdminResponse)
+async def update_admin(
+    admin_id: Annotated[int, Path(...)],
+    payload: SuperAdminUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_admin: Annotated[SuperAdmin, Depends(require_super_admin)],
+) -> SuperAdminResponse:
+    return await super_admin_service.update_admin_profile(db, admin_id, payload)
 
 
 # Officer Management
@@ -113,6 +132,16 @@ async def reactivate_officer(
     current_admin: Annotated[SuperAdmin, Depends(require_super_admin)],
 ) -> OfficerResponse:
     return await super_admin_service.reactivate_officer(db, officer_id, current_admin)
+
+
+@router.patch("/officers/{officer_id}", response_model=OfficerResponse)
+async def update_officer(
+    officer_id: Annotated[int, Path(...)],
+    payload: OfficerUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_admin: Annotated[SuperAdmin, Depends(require_super_admin)],
+) -> OfficerResponse:
+    return await super_admin_service.update_officer_profile(db, officer_id, payload)
 
 
 # Provider Management
