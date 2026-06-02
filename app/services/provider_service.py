@@ -141,7 +141,7 @@ class ProviderService:
     # other methods can be added here following async pattern
 
 
-# New async-ish functions for registration and admin flows
+# New async-ish functions for registration and officer flows
 async def register_provider_with_document(db: AsyncSession, form_data, license_file: UploadFile) -> Provider:
     # Validate and upload document
     secure_url = await upload_license_document(license_file, form_data.provider_type)
@@ -188,10 +188,10 @@ async def register_provider_with_document(db: AsyncSession, form_data, license_f
     verification_service = AccountVerificationService()
     await verification_service.send_provider_registration_verification(db, provider)
 
-    # Notify super admin(s) — create admin-scoped notification
+    # Notify super admin(s) — create officer-scoped notification
     try:
         note_svc = NotificationService()
-        await note_svc.stage_admin_event(db, title="New provider pending verification", body=f"{provider.name} ({provider.provider_type}) has submitted registration for review.")
+        await note_svc.stage_officer_event(db, title="New provider pending verification", body=f"{provider.name} ({provider.provider_type}) has submitted registration for review.")
         await db.commit()
     except Exception:
         # don't fail registration if notification fails
@@ -220,7 +220,7 @@ def _build_rejection_email_body(provider: Provider, reason: str) -> str:
     )
 
 
-async def verify_provider(db: AsyncSession, provider_id: int, action: str, reason: str | None, admin_id: int) -> Provider:
+async def verify_provider(db: AsyncSession, provider_id: int, action: str, reason: str | None, officer_id: int) -> Provider:
     provider = await db.scalar(select(Provider).where(Provider.id == provider_id))
     if not provider:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found")
@@ -231,7 +231,7 @@ async def verify_provider(db: AsyncSession, provider_id: int, action: str, reaso
     else:
         provider.verification_status = "rejected"
         provider.rejection_reason = reason
-    provider.verified_by = admin_id
+    provider.verified_by = officer_id
     provider.verified_at = now
     db.add(provider)
     await db.commit()

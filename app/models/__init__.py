@@ -30,4 +30,8 @@ __all__ = [
     "QRCheckin",
     "Review",
     "Notification",
+    "SuperAdmin",
+    "Officer",
 ]
+from app.models.super_admin import SuperAdmin
+from app.models.officer import Officer

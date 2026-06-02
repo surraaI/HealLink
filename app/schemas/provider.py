@@ -129,7 +129,7 @@ class ProviderPublicResponse(ProviderResponse):
     verification_status: str
 
 
-class AdminProviderResponse(ProviderPublicResponse):
+class OfficerProviderResponse(ProviderPublicResponse):
     license_document_url: str | None
     rejection_reason: str | None
     verified_by: int | None
@@ -147,7 +147,7 @@ class VerifyProviderRequest(BaseModel):
         return self
 
 
-class AdminStatsResponse(BaseModel):
+class OfficerStatsResponse(BaseModel):
     pending: int
     approved: int
     rejected: int

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Path, Query
 from app.api.dependencies import require_super_admin
 from app.db.session import get_db
 from app.models.patient import Patient
-from app.schemas.provider import AdminProviderResponse, VerifyProviderRequest, AdminStatsResponse, SignedDocumentResponse
+from app.schemas.provider import OfficerProviderResponse, VerifyProviderRequest, OfficerStatsResponse, SignedDocumentResponse
 from app.services.provider_service import get_providers_by_status, verify_provider, get_provider_stats
 from app.services.storage_service import generate_signed_url
 from app.services.auth_service import AuthService
@@ -13,25 +13,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.provider import Provider
 from sqlalchemy import select
 
-router = APIRouter(prefix="/api/v1/admin", tags=["Admin"])
+router = APIRouter(prefix="/api/v1/officer", tags=["Officer"])
 auth_service = AuthService()
 
 
-@router.get("/providers", response_model=list[AdminProviderResponse])
+@router.get("/providers", response_model=list[OfficerProviderResponse])
 async def list_providers(
     db: Annotated[AsyncSession, Depends(get_db)],
     status: Annotated[str | None, Query()] = None,
-    _admin=Depends(require_super_admin),
-) -> list[AdminProviderResponse]:
+    _officer=Depends(require_super_admin),
+) -> list[OfficerProviderResponse]:
     items = await get_providers_by_status(db, status)
-    return [AdminProviderResponse.model_validate(i) for i in items]
+    return [OfficerProviderResponse.model_validate(i) for i in items]
 
 
 @router.get("/providers/{provider_id}/document", response_model=SignedDocumentResponse)
 async def get_provider_document(
     db: Annotated[AsyncSession, Depends(get_db)],
     provider_id: Annotated[int, Path(...)],
-    _admin=Depends(require_super_admin),
+    _officer=Depends(require_super_admin),
 ):
     provider = await db.scalar(select(Provider).where(Provider.id == provider_id))
     if not provider or not provider.license_document_url:
@@ -42,32 +42,32 @@ async def get_provider_document(
     return SignedDocumentResponse(signed_url=signed, expires_in=3600)
 
 
-@router.post("/providers/{provider_id}/verify", response_model=AdminProviderResponse)
+@router.post("/providers/{provider_id}/verify", response_model=OfficerProviderResponse)
 async def post_verify_provider(
     db: Annotated[AsyncSession, Depends(get_db)],
     payload: VerifyProviderRequest,
     provider_id: Annotated[int, Path(...)],
-    admin=Depends(require_super_admin),
+    officer=Depends(require_super_admin),
 ):
-    admin_id = getattr(admin, "id", None)
-    prov = await verify_provider(db, provider_id, payload.action, payload.reason, admin_id)
-    return AdminProviderResponse.model_validate(prov)
+    officer_id = getattr(officer, "id", None)
+    prov = await verify_provider(db, provider_id, payload.action, payload.reason, officer_id)
+    return OfficerProviderResponse.model_validate(prov)
 
 
-@router.get("/stats", response_model=AdminStatsResponse)
+@router.get("/stats", response_model=OfficerStatsResponse)
 async def get_stats(
     db: Annotated[AsyncSession, Depends(get_db)],
-    _admin=Depends(require_super_admin),
+    _officer=Depends(require_super_admin),
 ):
     stats = await get_provider_stats(db)
-    return AdminStatsResponse.model_validate(stats)
+    return OfficerStatsResponse.model_validate(stats)
 
 
 @router.delete("/patients/{patient_id}")
 async def delete_patient(
     db: Annotated[AsyncSession, Depends(get_db)],
     patient_id: Annotated[int, Path(...)],
-    _admin=Depends(require_super_admin),
+    _officer=Depends(require_super_admin),
 ) -> dict[str, str]:
     patient = await db.scalar(select(Patient).where(Patient.id == patient_id))
     if not patient:

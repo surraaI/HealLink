@@ -10,7 +10,7 @@ from app.db.base import Base
 class NotificationChannel(str, Enum):
     IN_APP = "IN_APP"
     EMAIL = "EMAIL"
-    ADMIN = "ADMIN"
+    OFFICER = "OFFICER"
 
 
 class Notification(Base):

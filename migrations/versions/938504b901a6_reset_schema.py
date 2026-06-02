@@ -207,7 +207,7 @@ def upgrade() -> None:
     op.create_table('notifications',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('patient_id', sa.Integer(), nullable=True),
-    sa.Column('channel', sa.Enum('IN_APP', 'EMAIL', 'ADMIN', name='notificationchannel'), nullable=False),
+    sa.Column('channel', sa.Enum('IN_APP', 'EMAIL', 'OFFICER', name='notificationchannel'), nullable=False),
     sa.Column('title', sa.String(length=200), nullable=False),
     sa.Column('body', sa.Text(), nullable=False),
     sa.Column('appointment_id', sa.Integer(), nullable=True),
