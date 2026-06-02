@@ -89,6 +89,50 @@ class ProviderService:
         await db.refresh(provider)
         return provider
 
+    async def create_service(self, db: AsyncSession, provider_id: int, payload: ProviderServiceCreate) -> ServiceCatalog:
+        provider = await db.scalar(select(Provider).where(Provider.id == provider_id))
+        if not provider:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Provider not found")
+        
+        service = ServiceCatalog(
+            provider_id=provider_id,
+            name=payload.name,
+            service_type=payload.service_type,
+            location=payload.location,
+            price=payload.price,
+            duration_minutes=payload.duration_minutes,
+            description=payload.description,
+            is_active=True,
+        )
+        db.add(service)
+        await db.commit()
+        await db.refresh(service)
+        return service
+
+    async def create_service_slot(self, db: AsyncSession, service_id: int, payload: ServiceSlotCreate) -> ServiceSlot:
+        service = await db.scalar(select(ServiceCatalog).where(ServiceCatalog.id == service_id))
+        if not service:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Service not found")
+        
+        slot = ServiceSlot(
+            service_id=service_id,
+            starts_at=payload.starts_at,
+            ends_at=payload.ends_at,
+            is_booked=False,
+        )
+        db.add(slot)
+        await db.commit()
+        await db.refresh(slot)
+        return slot
+
+    async def list_service_slots(self, db: AsyncSession, service_id: int, only_available: bool = True) -> list[ServiceSlot]:
+        statement = select(ServiceSlot).where(ServiceSlot.service_id == service_id)
+        if only_available:
+            statement = statement.where(ServiceSlot.is_booked == False)
+        statement = statement.order_by(ServiceSlot.starts_at)
+        res = await db.scalars(statement)
+        return list(res.all())
+
     # other methods can be added here following async pattern
 
 

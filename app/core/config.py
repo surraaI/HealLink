@@ -1,7 +1,5 @@
 from functools import lru_cache
-from typing import Any
-
-from pydantic import computed_field, field_validator
+from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,7 +7,6 @@ class Settings(BaseSettings):
     app_name: str = "HealLink API"
     environment: str = "development"
     debug: bool = True
-    auto_migrate: bool = True
     api_v1_prefix: str = "/api/v1"
 
     DATABASE_URL: str = "sqlite:///./heallink.db"  # raw value from .env
@@ -57,17 +54,6 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
-
-    @field_validator("debug", "auto_migrate", mode="before")
-    @classmethod
-    def parse_boolish(cls, value: Any) -> Any:
-        if isinstance(value, str):
-            normalized = value.strip().lower()
-            if normalized in {"release", "production", "prod", "false", "0", "no", "off"}:
-                return False
-            if normalized in {"debug", "development", "dev", "true", "1", "yes", "on"}:
-                return True
-        return value
 
 
 @lru_cache
