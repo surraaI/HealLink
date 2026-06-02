@@ -53,6 +53,8 @@ class ProviderResponse(BaseModel):
     location: str
     address: str | None = None
     description: str | None
+    is_verified: bool = False
+    verification_status: str = "pending"
     created_at: datetime
 
 
