@@ -1,7 +1,7 @@
 """add_provider_refresh_tokens
 
-Revision ID: 20260602_add_provider_refresh_tokens
-Revises: 20260602_add_provider_email_verification
+Revision ID: 20260602_prefresh
+Revises: 20260602_pemail
 Create Date: 2026-06-02 12:30:00.000000
 """
 from typing import Sequence, Union
@@ -11,8 +11,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = "20260602_add_provider_refresh_tokens"
-down_revision: Union[str, None] = "20260602_add_provider_email_verification"
+revision: str = "20260602_prefresh"
+down_revision: Union[str, None] = "20260602_pemail"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

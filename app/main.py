@@ -22,6 +22,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description="Digital healthcare appointment and diagnostic platform API.",
     )
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=_cors_origins(),
