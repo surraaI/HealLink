@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6,6 +7,8 @@ from app.routers import appointments, auth, health, notifications, patients, pay
 
 
 settings = get_settings()
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def _cors_origins() -> list[str]:
@@ -22,6 +25,13 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description="Digital healthcare appointment and diagnostic platform API.",
     )
+
+    @app.middleware("http")
+    async def log_requests(request, call_next):
+        logger.info(f"Incoming request: {request.method} {request.url.path}")
+        response = await call_next(request)
+        logger.info(f"Response status: {response.status_code} for {request.method} {request.url.path}")
+        return response
 
     app.add_middleware(
         CORSMiddleware,
