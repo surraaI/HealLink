@@ -54,6 +54,19 @@ async def register_provider(
     return ProviderResponse.model_validate(provider)
 
 
+@router.get("/services", response_model=list[ServiceCatalogResponse])
+async def list_my_services(
+    current_provider: Annotated[Provider, Depends(get_current_provider)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[ServiceCatalogResponse]:
+    from sqlalchemy import select
+    from app.models.appointment import ServiceCatalog
+    services = await db.scalars(
+        select(ServiceCatalog).where(ServiceCatalog.provider_id == current_provider.id)
+    )
+    return [ServiceCatalogResponse.model_validate(item) for item in services]
+
+
 @router.post("/services", response_model=ServiceCatalogResponse)
 async def create_provider_service(
     payload: ProviderServiceCreate,
