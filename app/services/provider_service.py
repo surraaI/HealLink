@@ -200,6 +200,26 @@ async def register_provider_with_document(db: AsyncSession, form_data, license_f
     return provider
 
 
+def _build_approval_email_body(provider: Provider) -> str:
+    return (
+        f"Hi {provider.name},\n\n"
+        "Congratulations! Your HealLink provider account has been approved and is now active.\n\n"
+        "You can now log in to your account and start offering your services to patients.\n\n"
+        "If you have any questions, please don't hesitate to contact us.\n\n"
+        "Thanks,\nThe HealLink team"
+    )
+
+
+def _build_rejection_email_body(provider: Provider, reason: str) -> str:
+    return (
+        f"Hi {provider.name},\n\n"
+        "We regret to inform you that your HealLink provider account application has been rejected.\n\n"
+        f"Reason: {reason}\n\n"
+        "If you believe this is an error or would like to address the concerns mentioned, please contact our support team.\n\n"
+        "Thanks,\nThe HealLink team"
+    )
+
+
 async def verify_provider(db: AsyncSession, provider_id: int, action: str, reason: str | None, admin_id: int) -> Provider:
     provider = await db.scalar(select(Provider).where(Provider.id == provider_id))
     if not provider:
@@ -216,7 +236,18 @@ async def verify_provider(db: AsyncSession, provider_id: int, action: str, reaso
     db.add(provider)
     await db.commit()
     await db.refresh(provider)
-    # TODO: send email to provider
+    
+    # Send email to provider
+    notification_service = NotificationService()
+    if action == "approve":
+        email_body = _build_approval_email_body(provider)
+        subject = "Your HealLink Provider Account has been Approved"
+    else:
+        email_body = _build_rejection_email_body(provider, reason or "No reason provided")
+        subject = "Your HealLink Provider Account Application Status"
+    
+    notification_service.send_email(provider.email, subject, email_body)
+    
     return provider
 
 

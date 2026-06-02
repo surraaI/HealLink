@@ -132,6 +132,8 @@ class ProviderPublicResponse(ProviderResponse):
 class AdminProviderResponse(ProviderPublicResponse):
     license_document_url: str | None
     rejection_reason: str | None
+    verified_by: int | None
+    verified_at: datetime | None
 
 
 class VerifyProviderRequest(BaseModel):
