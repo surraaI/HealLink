@@ -30,6 +30,9 @@ class Provider(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda ctx=None: datetime.utcnow(), nullable=False)
 
+    # Email verification
+    is_verified: Mapped[bool] = mapped_column(default=False, server_default="false")
+    
     # Verification fields
     verification_status: Mapped[str] = mapped_column(
         SQLAlchemyEnum("pending", "approved", "rejected", name="verificationstatus"),

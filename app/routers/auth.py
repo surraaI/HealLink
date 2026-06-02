@@ -86,3 +86,39 @@ async def reset_password(
 ) -> dict[str, str]:
     await auth_service.reset_password(db, payload.token, payload.new_password)
     return {"message": "Password updated successfully"}
+
+
+@router.post("/providers/verify-email")
+async def verify_provider_email(
+    payload: EmailVerificationRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    await auth_service.verification_service.verify_provider_email(db, payload.token)
+    return {"message": "Provider email verified successfully"}
+
+
+@router.post("/providers/resend-verification")
+async def resend_provider_verification(
+    payload: ResendVerificationRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    await auth_service.verification_service.resend_provider_verification(db, payload.email)
+    return {"message": "If the email exists and is unverified, a new verification code was sent"}
+
+
+@router.post("/providers/forgot-password")
+async def forgot_provider_password(
+    payload: PasswordResetRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    await auth_service.verification_service.request_provider_password_reset(db, payload.email)
+    return {"message": "If the email exists, password reset instructions were sent"}
+
+
+@router.post("/providers/reset-password")
+async def reset_provider_password(
+    payload: PasswordResetConfirmRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, str]:
+    await auth_service.verification_service.reset_provider_password(db, payload.token, payload.new_password)
+    return {"message": "Provider password updated successfully"}
