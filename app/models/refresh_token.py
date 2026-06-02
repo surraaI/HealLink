@@ -13,6 +13,7 @@ class RefreshToken(Base):
     patient_id: Mapped[int | None] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
     provider_id: Mapped[int | None] = mapped_column(ForeignKey("providers.id"), nullable=True, index=True)
     super_admin_id: Mapped[int | None] = mapped_column(ForeignKey("super_admins.id"), nullable=True, index=True)
+    officer_id: Mapped[int | None] = mapped_column(ForeignKey("officers.id"), nullable=True, index=True)
     jti: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     token_hash: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
@@ -22,3 +23,4 @@ class RefreshToken(Base):
     patient = relationship("Patient")
     provider = relationship("Provider")
     super_admin = relationship("SuperAdmin")
+    officer = relationship("Officer")

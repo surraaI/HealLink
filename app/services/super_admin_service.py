@@ -18,8 +18,8 @@ from app.models.provider import Provider
 from app.models.refresh_token import RefreshToken
 from app.models.super_admin import SuperAdmin
 from app.schemas.auth import TokenResponse
-from app.schemas.officer import OfficerCreate, OfficerResponse
-from app.schemas.super_admin import SuperAdminCreate, SuperAdminResponse
+from app.schemas.officer import OfficerCreate, OfficerResponse, OfficerUpdate
+from app.schemas.super_admin import SuperAdminCreate, SuperAdminResponse, SuperAdminUpdate
 
 settings = get_settings()
 
@@ -48,6 +48,29 @@ class SuperAdminService:
     async def login(self, db: AsyncSession, email: str, password: str) -> TokenResponse:
         admin = await self.authenticate(db, email, password)
         return await self._issue_token_pair(db, admin)
+
+    async def authenticate_officer(self, db: AsyncSession, email: str, password: str) -> Officer:
+        officer = await self.get_officer_by_email(db, email.lower())
+        if not officer:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password",
+            )
+        if not officer.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account is deactivated",
+            )
+        if not verify_password(password, officer.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password",
+            )
+        return officer
+
+    async def officer_login(self, db: AsyncSession, email: str, password: str) -> TokenResponse:
+        officer = await self.authenticate_officer(db, email, password)
+        return await self._issue_officer_token_pair(db, officer)
 
     async def create_admin(
         self, db: AsyncSession, payload: SuperAdminCreate, created_by: SuperAdmin
@@ -118,6 +141,22 @@ class SuperAdminService:
                 detail="Super Admin not found",
             )
         admin.is_active = True
+        db.add(admin)
+        await db.commit()
+        await db.refresh(admin)
+        return SuperAdminResponse.model_validate(admin)
+
+    async def update_admin_profile(
+        self, db: AsyncSession, admin_id: int, payload: SuperAdminUpdate
+    ) -> SuperAdminResponse:
+        admin = await self.get_by_id(db, admin_id)
+        if not admin:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Super Admin not found",
+            )
+        if payload.full_name is not None:
+            admin.full_name = payload.full_name
         db.add(admin)
         await db.commit()
         await db.refresh(admin)
@@ -203,6 +242,24 @@ class SuperAdminService:
                 detail="Officer not found",
             )
         officer.is_active = True
+        db.add(officer)
+        await db.commit()
+        await db.refresh(officer)
+        return OfficerResponse.model_validate(officer)
+
+    async def update_officer_profile(
+        self, db: AsyncSession, officer_id: int, payload: OfficerUpdate
+    ) -> OfficerResponse:
+        officer = await self.get_officer_by_id(db, officer_id)
+        if not officer:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Officer not found",
+            )
+        if payload.full_name is not None:
+            officer.full_name = payload.full_name
+        if payload.department is not None:
+            officer.department = payload.department
         db.add(officer)
         await db.commit()
         await db.refresh(officer)
@@ -296,4 +353,28 @@ class SuperAdminService:
             access_token=access_token,
             refresh_token=refresh_token,
             patient=SuperAdminResponse.model_validate(admin),
+        )
+
+    async def _issue_officer_token_pair(self, db: AsyncSession, officer: Officer) -> TokenResponse:
+        access_token = create_access_token(str(officer.id), role="officer")
+        refresh_jti = str(uuid4())
+        refresh_token = create_refresh_token(str(officer.id), jti=refresh_jti, role="officer")
+        refresh_expires = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
+
+        token_record = RefreshToken(
+            patient_id=None,
+            provider_id=None,
+            super_admin_id=None,
+            officer_id=officer.id,
+            jti=refresh_jti,
+            token_hash=hash_token(refresh_token),
+            expires_at=refresh_expires,
+        )
+        db.add(token_record)
+        await db.commit()
+
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            patient=OfficerResponse.model_validate(officer),
         )
