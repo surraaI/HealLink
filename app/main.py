@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def _cors_origins() -> list[str]:
-    origins = ["http://localhost:3000"]
+    origins = ["http://localhost:3000", "http://localhost:3001"]
     frontend_url = settings.frontend_url.strip().rstrip("/")
     if frontend_url:
         origins.append(frontend_url)
