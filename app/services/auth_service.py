@@ -12,9 +12,11 @@ from app.core.security import (
     decode_token,
     hash_token,
 )
+from app.models.officer import Officer
 from app.models.patient import Patient
 from app.models.provider import Provider
 from app.models.refresh_token import RefreshToken
+from app.models.super_admin import SuperAdmin
 from app.schemas.auth import TokenResponse
 from app.schemas.patient import PatientCreate, PatientResponse
 from app.schemas.provider import ProviderResponse
@@ -118,6 +120,48 @@ class AuthService:
             await db.commit()
 
             return await self._issue_provider_token_pair(db, provider)
+
+        if role == "super_admin":
+            from app.services.super_admin_service import SuperAdminService
+            super_admin_service = SuperAdminService()
+            admin = await super_admin_service.get_by_id(db, account_id)
+            if not admin:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Super admin not found",
+                )
+            if not admin.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Account is deactivated",
+                )
+
+            token_record.revoked_at = datetime.utcnow()
+            db.add(token_record)
+            await db.commit()
+
+            return await super_admin_service._issue_token_pair(db, admin)
+
+        if role == "officer":
+            from app.services.super_admin_service import SuperAdminService
+            super_admin_service = SuperAdminService()
+            officer = await super_admin_service.get_officer_by_id(db, account_id)
+            if not officer:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Officer not found",
+                )
+            if not officer.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Account is deactivated",
+                )
+
+            token_record.revoked_at = datetime.utcnow()
+            db.add(token_record)
+            await db.commit()
+
+            return await super_admin_service._issue_officer_token_pair(db, officer)
 
         patient = await self.patient_service.get_by_id(db, account_id)
         if not patient:
