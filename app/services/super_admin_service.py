@@ -272,9 +272,9 @@ class SuperAdminService:
         provider_type: str | None = None,
     ) -> list:
         stmt = select(Provider)
-        if verification_status:
+        if verification_status and verification_status != "undefined":
             stmt = stmt.where(Provider.verification_status == verification_status)
-        if provider_type:
+        if provider_type and provider_type != "undefined" and provider_type != "UNDEFINED":
             stmt = stmt.where(Provider.provider_type == provider_type.upper())
         stmt = stmt.order_by(Provider.created_at.desc())
         result = await db.execute(stmt)
