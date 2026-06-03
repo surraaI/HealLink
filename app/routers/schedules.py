@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import get_current_provider, get_db
+from app.api.dependencies import get_db
 from app.models.provider import Provider
 from app.schemas.schedule import (
     GenerateSlotsRequest,
@@ -43,14 +43,14 @@ async def create_schedule(
 @router.get("", response_model=list[ScheduleResponse])
 async def list_schedules(
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_provider: Annotated[Provider, Depends(get_current_provider)],
+    provider_id: Annotated[int, Query()],
     service_id: Annotated[int | None, Query()] = None,
     is_active: Annotated[bool | None, Query()] = None,
 ) -> list[ScheduleResponse]:
-    """List all schedules for the current provider."""
+    """List all schedules for a provider (public endpoint)."""
     schedules = await schedule_service.list_provider_schedules(
         db,
-        provider_id=current_provider.id,
+        provider_id=provider_id,
         service_id=service_id,
         is_active=is_active,
     )
@@ -61,10 +61,10 @@ async def list_schedules(
 async def get_schedule(
     schedule_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
-    current_provider: Annotated[Provider, Depends(get_current_provider)],
+    provider_id: Annotated[int, Query()],
 ) -> ScheduleResponse:
-    """Get a specific schedule by ID."""
-    schedule = await schedule_service.get_schedule(db, schedule_id, current_provider.id)
+    """Get a specific schedule by ID (public endpoint)."""
+    schedule = await schedule_service.get_schedule(db, schedule_id, provider_id)
     return ScheduleResponse.model_validate(schedule)
 
 

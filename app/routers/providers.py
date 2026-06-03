@@ -56,14 +56,15 @@ async def register_provider(
 
 
 @router.get("/services", response_model=list[ServiceCatalogResponse])
-async def list_my_services(
-    current_provider: Annotated[Provider, Depends(get_current_provider)],
+async def list_provider_services(
+    provider_id: Annotated[int, Query()],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> list[ServiceCatalogResponse]:
+    """List all services for a provider (public endpoint)."""
     from sqlalchemy import select
     from app.models.appointment import ServiceCatalog
     services = await db.scalars(
-        select(ServiceCatalog).where(ServiceCatalog.provider_id == current_provider.id)
+        select(ServiceCatalog).where(ServiceCatalog.provider_id == provider_id)
     )
     return [ServiceCatalogResponse.model_validate(item) for item in services]
 
