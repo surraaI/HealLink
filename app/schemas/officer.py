@@ -3,6 +3,20 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
+class OfficerLogin(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password should have at least 8 characters")
+        if len(v) > 128:
+            raise ValueError("Password should not exceed 128 characters")
+        return v
+
+
 class OfficerCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)

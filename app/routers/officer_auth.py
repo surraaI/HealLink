@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from app.api.dependencies import get_current_officer, get_db
 from app.models.officer import Officer
 from app.schemas.auth import TokenResponse
-from app.schemas.officer import OfficerCreate, OfficerResponse, OfficerUpdate
+from app.schemas.officer import OfficerCreate, OfficerLogin, OfficerResponse, OfficerUpdate
 from app.services.super_admin_service import SuperAdminService
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,7 +15,7 @@ super_admin_service = SuperAdminService()
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
-    payload: OfficerCreate,
+    payload: OfficerLogin,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> TokenResponse:
     return await super_admin_service.officer_login(db, payload.email, payload.password)
