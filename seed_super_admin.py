@@ -22,8 +22,10 @@ async def seed_super_admin():
         existing = result.scalar_one_or_none()
 
         if existing:
-            print(f"Super admin with email {email} already exists.")
-            return
+            print(f"Deleting existing super admin with email {email}...")
+            await session.delete(existing)
+            await session.commit()
+            print(f"Existing super admin deleted.")
 
         # Create super admin
         hashed_pw = hash_password(password)

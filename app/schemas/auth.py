@@ -5,15 +5,17 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.models.provider import ProviderType
 
+from app.schemas.officer import OfficerResponse
 from app.schemas.patient import PatientResponse
 from app.schemas.provider import ProviderResponse
+from app.schemas.super_admin import SuperAdminResponse
 
 
 class TokenResponse(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
-    patient: PatientResponse | ProviderResponse
+    patient: PatientResponse | ProviderResponse | SuperAdminResponse | OfficerResponse
 
 
 class RefreshTokenRequest(BaseModel):

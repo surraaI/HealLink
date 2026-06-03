@@ -41,6 +41,7 @@ class SuperAdminResponse(BaseModel):
     full_name: str
     is_active: bool
     created_at: datetime
+    role: str = "super_admin"
 
 
 class SuperAdminUpdate(BaseModel):
