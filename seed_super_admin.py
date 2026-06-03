@@ -7,8 +7,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from app.core.security import hash_password
 from app.db.session import AsyncSessionLocal
+from app.models.refresh_token import RefreshToken
 from app.models.super_admin import SuperAdmin
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 
 async def seed_super_admin():
@@ -23,6 +24,8 @@ async def seed_super_admin():
 
         if existing:
             print(f"Deleting existing super admin with email {email}...")
+            # Delete associated refresh tokens first
+            await session.execute(delete(RefreshToken).where(RefreshToken.super_admin_id == existing.id))
             await session.delete(existing)
             await session.commit()
             print(f"Existing super admin deleted.")
